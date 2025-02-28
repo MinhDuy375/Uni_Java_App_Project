@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/8.0" xmlns:fx="http://javafx.com/fxml/1" fx:controller="main.controllers.HomeController">
+    <!-- Thanh trên cùng -->
+    <top>
+        <HBox spacing="10" style="-fx-background-color: #64A5DA; -fx-padding: 10px;">
+            <Label text="NétCỏ" style="-fx-font-size: 40px; -fx-text-fill: white;"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <ImageView fx:id="notificationIcon" fitWidth="20" fitHeight="20">
+                <Image url="@../resources/images/bell-icon.png"/>
+            </ImageView>
+            <Button text="A" style="-fx-background-radius: 50%; -fx-font-size: 14px; -fx-background-color: #4A90E2; -fx-text-fill: white;"/>
+        </HBox>
+    </top>
+
+    <!-- Thanh menu bên trái -->
+    <left>
+        <VBox style="-fx-background-color: #0A345A; -fx-padding: 10px;">
+            <Button text="Máy bàn" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Lịch sử hoạt động" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Menu" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Khuyến mãi" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Kho hàng" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Thông tin Khách hàng" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Quản lý Nhân viên" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Thống kê" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+            <Button text="Hướng dẫn sử dụng" style="-fx-background-color: transparent; -fx-text-fill: white;"/>
+        </VBox>
+    </left>
+
+    <!-- Nội dung chính -->
+    <center>
+        <Pane style="-fx-background-color: #F4F4F4; -fx-padding: 10px;"/>
+    </center>
+</BorderPane>
