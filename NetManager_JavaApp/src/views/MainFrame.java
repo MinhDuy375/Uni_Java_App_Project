@@ -96,6 +96,7 @@ public class MainFrame extends JFrame { // Kế thừa từ JFrame để tạo c
         paddingPanel.add(contentPanel, BorderLayout.CENTER);
 
         contentPanel.add(new ManageComputer(), "Quản lý bàn máy");
+        contentPanel.add(createContentPanel("Lịch sử hoạt động"), "Lịch sử hoạt động");
         contentPanel.add(createContentPanel("Menu dịch vụ"), "Menu dịch vụ");
         contentPanel.add(createContentPanel("Khuyến mãi"), "Khuyến mãi");
         contentPanel.add(createContentPanel("Quản lý thông tin"), "Quản lý thông tin");
@@ -103,6 +104,7 @@ public class MainFrame extends JFrame { // Kế thừa từ JFrame để tạo c
 
         String[] menuItems = {
                 "Quản lý bàn máy",
+                "Lịch sử hoạt động",
                 "Menu dịch vụ",
                 "Khuyến mãi",
                 "Quản lý thông tin",
