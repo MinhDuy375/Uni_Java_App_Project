@@ -6,24 +6,23 @@
     "configurations": [
         {
             "type": "java",
-            "name": "test",
+            "name": "Current File",
             "request": "launch",
-            "mainClass": "views.test",
-            "projectName": "NetManager_JavaApp_329fd5fc"
+            "mainClass": "${file}"
         },
         {
             "type": "java",
             "name": "LoginPanel",
             "request": "launch",
             "mainClass": "views.LoginPanel",
-            "projectName": "NetManager_JavaApp_329fd5fc"
+            "projectName": "Uni_Java_App_Project_16409243"
         },
         {
             "type": "java",
             "name": "MainFrame",
             "request": "launch",
             "mainClass": "views.MainFrame",
-            "projectName": "NetManager_JavaApp_329fd5fc"
+            "projectName": "Uni_Java_App_Project_16409243"
         }
     ]
 }
