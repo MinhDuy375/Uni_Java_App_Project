@@ -1,25 +1,23 @@
 package views;
 
 import javax.swing.*;
-import javax.swing.border.Border;
-import java.util.List;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
-
-import views.ManageComputer;
+import java.util.List;
 
 public class MainFrame extends JFrame {
     private JPanel menuPanel;
-    private JPanel subMenuPanelManageInfo; // Thanh menu phụ cho "Quản lý thông tin"
-    private JPanel subMenuPanelServiceMenu; // Thanh menu phụ mới cho "Menu dịch vụ"
     private JPanel contentPanel;
     private CardLayout cardLayout;
-    private JButton backButtonManageInfo; // Nút quay lại cho "Quản lý thông tin"
-    private JButton backButtonServiceMenu; // Nút quay lại cho "Menu dịch vụ"
+    private List<JButton> menuButtons = new ArrayList<>();
+    private JButton selectedButton = null;
+
+    // Panels for submenus
+    private JPanel subMenuManageInfo;
+    private JPanel subMenuServiceMenu;
     private boolean isSubMenuManageInfoVisible = false;
     private boolean isSubMenuServiceMenuVisible = false;
-    private JPanel sidebar; // Panel chứa menu hoặc submenu
 
     public MainFrame() {
         setTitle("Net Management");
@@ -32,7 +30,7 @@ public class MainFrame extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.GRAY);
 
-        // Header Panel (giữ nguyên bố cục thanh ngang gốc)
+        // Header Panel (unchanged)
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(Color.WHITE);
         headerPanel.setPreferredSize(new Dimension(1127, 80));
@@ -62,20 +60,16 @@ public class MainFrame extends JFrame {
         account.setPreferredSize(new Dimension(150, 70));
         account.setFont(new Font("Arial", Font.BOLD, 14));
 
-        // Tạo menu dropdown
         JPopupMenu adminMenu = new JPopupMenu();
         adminMenu.setBackground(Color.WHITE);
         adminMenu.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(173, 173, 173, 200)));
         JMenuItem logoutItem = new JMenuItem("Đăng xuất");
         logoutItem.setBackground(Color.white);
         logoutItem.setBorder(BorderFactory.createEmptyBorder(5, 20, 7, 30));
-
         logoutItem.addActionListener(e -> showLoginPanel());
         adminMenu.add(logoutItem);
 
-        // Biến trạng thái để kiểm tra menu đang hiển thị hay không
         final boolean[] menuVisible = { false };
-
         account.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -84,7 +78,7 @@ public class MainFrame extends JFrame {
                 } else {
                     adminMenu.setVisible(false);
                 }
-                menuVisible[0] = !menuVisible[0]; // Đảo trạng thái
+                menuVisible[0] = !menuVisible[0];
             }
         });
 
@@ -98,80 +92,12 @@ public class MainFrame extends JFrame {
         headerPanel.add(netCoBlock, BorderLayout.WEST);
         headerPanel.add(notification, BorderLayout.EAST);
 
-        // Sidebar với CardLayout để chuyển đổi giữa menu và submenu
-        sidebar = new JPanel(new CardLayout());
-        sidebar.setPreferredSize(new Dimension(235, 0));
-
-        // Menu Panel (thanh menu chính)
-        menuPanel = new JPanel(new FlowLayout());
+        // Sidebar with BoxLayout
+        menuPanel = new JPanel();
+        menuPanel.setLayout(new BoxLayout(menuPanel, BoxLayout.Y_AXIS));
         menuPanel.setPreferredSize(new Dimension(235, 0));
         menuPanel.setBackground(new Color(0, 54, 92));
         menuPanel.setBorder(BorderFactory.createEmptyBorder(50, 0, 0, 0));
-        menuPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
-
-        // Sub Menu Panel cho "Quản lý thông tin" (giữ nguyên)
-        subMenuPanelManageInfo = new JPanel(new FlowLayout());
-        subMenuPanelManageInfo.setPreferredSize(new Dimension(235, 0));
-        subMenuPanelManageInfo.setBackground(new Color(0, 54, 92));
-        subMenuPanelManageInfo.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-        subMenuPanelManageInfo.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
-
-        // Nút Quay lại trên subMenuPanelManageInfo
-        backButtonManageInfo = new JButton("<< Quay lại");
-        backButtonManageInfo.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButtonManageInfo.setFont(new Font("IBM Plex Mono", Font.BOLD, 15));
-        backButtonManageInfo.setForeground(Color.WHITE);
-        backButtonManageInfo.setBackground(new Color(0, 54, 92));
-        backButtonManageInfo.setBorderPainted(false);
-        backButtonManageInfo.setFocusPainted(false);
-        backButtonManageInfo.setPreferredSize(new Dimension(235, 50));
-        backButtonManageInfo.setHorizontalAlignment(SwingConstants.LEFT);
-        backButtonManageInfo.setBorder(BorderFactory.createEmptyBorder(10, 30, 15, 20));
-        backButtonManageInfo.addActionListener(e -> toggleSubMenu("Quản lý thông tin", false));
-        backButtonManageInfo.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                backButtonManageInfo.setBackground(new Color(70, 100, 120));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                backButtonManageInfo.setBackground(new Color(0, 54, 92));
-            }
-        });
-        subMenuPanelManageInfo.add(backButtonManageInfo);
-
-        // Sub Menu Panel cho "Menu dịch vụ" (thêm mới)
-        subMenuPanelServiceMenu = new JPanel(new FlowLayout());
-        subMenuPanelServiceMenu.setPreferredSize(new Dimension(235, 0));
-        subMenuPanelServiceMenu.setBackground(new Color(0, 54, 92));
-        subMenuPanelServiceMenu.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-        subMenuPanelServiceMenu.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
-
-        // Nút Quay lại trên subMenuPanelServiceMenu
-        backButtonServiceMenu = new JButton("<< Quay lại");
-        backButtonServiceMenu.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButtonServiceMenu.setFont(new Font("IBM Plex Mono", Font.BOLD, 15));
-        backButtonServiceMenu.setForeground(Color.WHITE);
-        backButtonServiceMenu.setBackground(new Color(0, 54, 92));
-        backButtonServiceMenu.setBorderPainted(false);
-        backButtonServiceMenu.setFocusPainted(false);
-        backButtonServiceMenu.setPreferredSize(new Dimension(235, 50));
-        backButtonServiceMenu.setHorizontalAlignment(SwingConstants.LEFT);
-        backButtonServiceMenu.setBorder(BorderFactory.createEmptyBorder(10, 30, 15, 20));
-        backButtonServiceMenu.addActionListener(e -> toggleSubMenu("Menu dịch vụ", false));
-        backButtonServiceMenu.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                backButtonServiceMenu.setBackground(new Color(70, 100, 120));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                backButtonServiceMenu.setBackground(new Color(0, 54, 92));
-            }
-        });
-        subMenuPanelServiceMenu.add(backButtonServiceMenu);
 
         // Content Panel
         JPanel paddingPanel = new JPanel(new BorderLayout());
@@ -183,7 +109,7 @@ public class MainFrame extends JFrame {
         contentPanel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, Color.WHITE));
         paddingPanel.add(contentPanel, BorderLayout.CENTER);
 
-        // Thêm các panel
+        // Add content panels
         contentPanel.add(new ManageComputer(), "Quản lý bàn máy");
         contentPanel.add(createContentPanel("Menu dịch vụ"), "Menu dịch vụ");
         contentPanel.add(new InventoryPanel(), "Kho hàng");
@@ -191,7 +117,7 @@ public class MainFrame extends JFrame {
         contentPanel.add(new StaffPanel(), "Quản lý thông tin");
         contentPanel.add(new StatisticsPanel(), "Báo cáo - Thống kê");
 
-        // Menu chính
+        // Main menu items
         String[] menuItems = {
                 "Quản lý bàn máy",
                 "Menu dịch vụ",
@@ -199,91 +125,130 @@ public class MainFrame extends JFrame {
                 "Quản lý thông tin",
                 "Báo cáo - Thống kê"
         };
+
         for (String item : menuItems) {
             JButton button = new JButton(item);
             styleMenuButton(button);
+            button.setAlignmentX(Component.LEFT_ALIGNMENT);
             button.addActionListener(e -> {
-                cardLayout.show(contentPanel, item);
                 if (item.equals("Quản lý thông tin")) {
-                    toggleSubMenu("Quản lý thông tin", true);
+                    toggleSubMenuManageInfo();
                 } else if (item.equals("Menu dịch vụ")) {
-                    toggleSubMenu("Menu dịch vụ", true);
+                    toggleSubMenuServiceMenu();
                 } else {
-                    toggleSubMenu("none", false);
+                    cardLayout.show(contentPanel, item);
+                    updateSelectedButton(button);
                 }
             });
-            menuPanel.add(button);
+            menuButtons.add(button);
         }
 
-        // Menu phụ cho "Quản lý thông tin" (giữ nguyên)
-        String[] subMenuItemsManageInfo = { "Thông tin khách hàng", "Thông tin nhân viên" };
-        for (String item : subMenuItemsManageInfo) {
-            JButton button = new JButton(item);
-            styleMenuButton(button);
-            button.addActionListener(e -> {
-                if (item.equals("Thông tin nhân viên")) {
-                    cardLayout.show(contentPanel, "Quản lý thông tin");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Chức năng 'Thông tin khách hàng' đang phát triển!");
-                }
-            });
-            subMenuPanelManageInfo.add(button);
-        }
+        // Submenu panels with adjusted green left border
+        subMenuManageInfo = new JPanel();
+        subMenuManageInfo.setLayout(new BoxLayout(subMenuManageInfo, BoxLayout.Y_AXIS));
+        subMenuManageInfo.setBackground(new Color(0, 54, 92));
+        subMenuManageInfo.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(97, 187, 252))); // Light blue
+                                                                                                           // border
 
-        // Menu phụ cho "Menu dịch vụ" (thêm mới)
-        String[] subMenuItemsServiceMenu = { "Menu", "Kho hàng" };
-        for (String item : subMenuItemsServiceMenu) {
-            JButton button = new JButton(item);
-            styleMenuButton(button);
-            button.addActionListener(e -> {
-                if (item.equals("Kho hàng")) {
-                    cardLayout.show(contentPanel, "Kho hàng");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Chức năng 'Menu' đang phát triển!");
-                }
-            });
-            subMenuPanelServiceMenu.add(button);
-        }
+        subMenuServiceMenu = new JPanel();
+        subMenuServiceMenu.setLayout(new BoxLayout(subMenuServiceMenu, BoxLayout.Y_AXIS));
+        subMenuServiceMenu.setBackground(new Color(0, 54, 92));
+        subMenuServiceMenu.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(97, 187, 252))); // Light
+                                                                                                            // blue
+                                                                                                            // border
 
-        // Thêm menuPanel và các submenu vào sidebar
-        sidebar.add(menuPanel, "mainMenu");
-        sidebar.add(subMenuPanelManageInfo, "subMenuManageInfo");
-        sidebar.add(subMenuPanelServiceMenu, "subMenuServiceMenu");
+        // Initially build the menu
+        rebuildMenu();
 
-        // Thêm các panel vào mainPanel
+        // Add main panel
         mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(sidebar, BorderLayout.WEST);
+        mainPanel.add(menuPanel, BorderLayout.WEST);
         mainPanel.add(paddingPanel, BorderLayout.CENTER);
 
         add(mainPanel);
     }
 
-    private void toggleSubMenu(String menuType, boolean showSubMenu) {
-        CardLayout cl = (CardLayout) sidebar.getLayout();
-        if (showSubMenu) {
-            if (menuType.equals("Quản lý thông tin") && !isSubMenuManageInfoVisible) {
-                cl.show(sidebar, "subMenuManageInfo");
-                isSubMenuManageInfoVisible = true;
-                isSubMenuServiceMenuVisible = false;
-            } else if (menuType.equals("Menu dịch vụ") && !isSubMenuServiceMenuVisible) {
-                cl.show(sidebar, "subMenuServiceMenu");
-                isSubMenuServiceMenuVisible = true;
-                isSubMenuManageInfoVisible = false;
+    private void rebuildMenu() {
+        menuPanel.removeAll();
+
+        // Add "Quản lý bàn máy"
+        menuPanel.add(menuButtons.get(0));
+
+        // Add "Menu dịch vụ" and its submenu if visible
+        menuPanel.add(menuButtons.get(1));
+        if (isSubMenuServiceMenuVisible) {
+            subMenuServiceMenu.removeAll();
+            String[] subMenuItems = { "Menu", "Kho hàng" };
+            for (String item : subMenuItems) {
+                JButton button = new JButton(item);
+                styleSubMenuButton(button);
+                button.addActionListener(e -> {
+                    if (item.equals("Kho hàng")) {
+                        cardLayout.show(contentPanel, "Kho hàng");
+                        updateSelectedButton(button);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Chức năng 'Menu' đang phát triển!");
+                    }
+                });
+                subMenuServiceMenu.add(button);
             }
-        } else {
-            cl.show(sidebar, "mainMenu");
-            isSubMenuManageInfoVisible = false;
-            isSubMenuServiceMenuVisible = false;
+            menuPanel.add(subMenuServiceMenu);
         }
+
+        // Add "Khuyến mãi"
+        menuPanel.add(menuButtons.get(2));
+
+        // Add "Quản lý thông tin" and its submenu if visible
+        menuPanel.add(menuButtons.get(3));
+        if (isSubMenuManageInfoVisible) {
+            subMenuManageInfo.removeAll();
+            String[] subMenuItems = { "Thông tin khách hàng", "Thông tin nhân viên" };
+            for (String item : subMenuItems) {
+                JButton button = new JButton(item);
+                styleSubMenuButton(button);
+                button.addActionListener(e -> {
+                    if (item.equals("Thông tin nhân viên")) {
+                        cardLayout.show(contentPanel, "Quản lý thông tin");
+                        updateSelectedButton(button);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Chức năng 'Thông tin khách hàng' đang phát triển!");
+                    }
+                });
+                subMenuManageInfo.add(button);
+            }
+            menuPanel.add(subMenuManageInfo);
+        }
+
+        // Add "Báo cáo - Thống kê" last
+        menuPanel.add(menuButtons.get(4));
+
         revalidate();
         repaint();
     }
 
+    private void toggleSubMenuManageInfo() {
+        isSubMenuManageInfoVisible = !isSubMenuManageInfoVisible;
+        rebuildMenu();
+    }
+
+    private void toggleSubMenuServiceMenu() {
+        isSubMenuServiceMenuVisible = !isSubMenuServiceMenuVisible;
+        rebuildMenu();
+    }
+
+    private void updateSelectedButton(JButton button) {
+        if (selectedButton != null && selectedButton != button) {
+            selectedButton.setBackground(new Color(0, 54, 92));
+        }
+        selectedButton = button;
+        button.setBackground(new Color(97, 187, 252));
+    }
+
     private void showLoginPanel() {
         JOptionPane.showMessageDialog(this, "Trở về Đăng nhập");
-        dispose(); // Đóng cửa sổ hiện tại
-        LoginPanel login = new LoginPanel(); // Tạo thể hiện mới
-        login.setVisible(true); // Hiển thị giao diện đăng nhập
+        dispose();
+        LoginPanel login = new LoginPanel();
+        login.setVisible(true);
     }
 
     private JPanel createContentPanel(String text) {
@@ -293,12 +258,10 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-    private JButton selectedButton = null;
-    private List<JButton> menuButtons = new ArrayList<>();
-
     private void styleMenuButton(JButton button) {
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         button.setPreferredSize(new Dimension(235, 50));
+        button.setMaximumSize(new Dimension(235, 50));
         button.setOpaque(true);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
@@ -323,14 +286,36 @@ public class MainFrame extends JFrame {
                     button.setBackground(new Color(0, 54, 92));
                 }
             }
+        });
+    }
+
+    private void styleSubMenuButton(JButton button) {
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(235, 40));
+        button.setMaximumSize(new Dimension(235, 40));
+        button.setOpaque(true);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(true);
+        button.setFont(new Font("IBM Plex Mono", Font.BOLD, 13));
+        button.setForeground(Color.WHITE);
+        button.setHorizontalAlignment(SwingConstants.LEFT);
+        button.setBorder(BorderFactory.createEmptyBorder(5, 50, 5, 20)); // Indent submenu items
+        button.setBackground(new Color(0, 54, 92));
+
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (button != selectedButton) {
+                    button.setBackground(new Color(70, 100, 120));
+                }
+            }
 
             @Override
-            public void mouseClicked(MouseEvent e) {
-                if (selectedButton != null && selectedButton != button) {
-                    selectedButton.setBackground(new Color(0, 54, 92));
+            public void mouseExited(MouseEvent e) {
+                if (button != selectedButton) {
+                    button.setBackground(new Color(0, 54, 92));
                 }
-                selectedButton = button;
-                button.setBackground(new Color(97, 187, 252));
             }
         });
     }

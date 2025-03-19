@@ -54,12 +54,39 @@ public class MainFrame extends JFrame {
         bellButton.setBorderPainted(false);
         bellButton.setFocusPainted(false);
 
-        JButton account = new JButton("Admin");
+        JLabel account = new JLabel("Tài khoản");
         account.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        account.setPreferredSize(new Dimension(150, 80));
-        account.setBorderPainted(false);
-        account.setFocusPainted(false);
+        account.setOpaque(true);
         account.setBackground(Color.WHITE);
+        account.setHorizontalAlignment(SwingConstants.CENTER);
+        account.setPreferredSize(new Dimension(150, 70));
+        account.setFont(new Font("Arial", Font.BOLD, 14));
+
+        // Tạo menu dropdown
+        JPopupMenu adminMenu = new JPopupMenu();
+        adminMenu.setBackground(Color.WHITE);
+        adminMenu.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(173, 173, 173, 200)));
+        JMenuItem logoutItem = new JMenuItem("Đăng xuất");
+        logoutItem.setBackground(Color.white);
+        logoutItem.setBorder(BorderFactory.createEmptyBorder(5, 20, 7, 30));
+
+        logoutItem.addActionListener(e -> showLoginPanel());
+        adminMenu.add(logoutItem);
+
+        // Biến trạng thái để kiểm tra menu đang hiển thị hay không
+        final boolean[] menuVisible = { false };
+
+        account.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!menuVisible[0]) {
+                    adminMenu.show(account, 11, 51);
+                } else {
+                    adminMenu.setVisible(false);
+                }
+                menuVisible[0] = !menuVisible[0]; // Đảo trạng thái
+            }
+        });
 
         JPanel notification = new JPanel(new BorderLayout());
         notification.setPreferredSize(new Dimension(260, 80));
@@ -250,6 +277,13 @@ public class MainFrame extends JFrame {
         }
         revalidate();
         repaint();
+    }
+
+    private void showLoginPanel() {
+        JOptionPane.showMessageDialog(this, "Trở về Đăng nhập");
+        dispose(); // Đóng cửa sổ hiện tại
+        LoginPanel login = new LoginPanel(); // Tạo thể hiện mới
+        login.setVisible(true); // Hiển thị giao diện đăng nhập
     }
 
     private JPanel createContentPanel(String text) {
