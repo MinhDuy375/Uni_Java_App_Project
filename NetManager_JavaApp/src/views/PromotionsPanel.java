@@ -1,107 +1,240 @@
 package views;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class PromotionsPanel extends JPanel {
-    private JTable promotionsTable;
+    private DatabaseManager dbManager;
     private DefaultTableModel tableModel;
+    private JTable promotionsTable;
+    private JTextField searchField;
 
     public PromotionsPanel() {
+        dbManager = new DatabaseManager();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
 
         // Tiêu đề
-        JLabel title = new JLabel("Hoạt động khuyến mãi", SwingConstants.CENTER);
+        JLabel title = new JLabel("Quản lý khuyến mãi", SwingConstants.CENTER);
         title.setFont(new Font("IBM Plex Mono", Font.BOLD, 20));
         title.setForeground(new Color(0, 54, 92));
         title.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         add(title, BorderLayout.NORTH);
 
-        // Bảng khuyến mãi
-        String[] columns = {"ID", "Tên khuyến mãi", "Giảm giá (%)", "Ngày bắt đầu", "Ngày kết thúc"};
-        tableModel = new DefaultTableModel(columns, 0);
+        // Bảng dữ liệu
+        String[] columnNames = {"Mã KM", "Tên chương trình", "Mức KM", "Thời gian bắt đầu", "Thời gian kết thúc", "Trạng thái"};
+        tableModel = new DefaultTableModel(columnNames, 0);
         promotionsTable = new JTable(tableModel);
-
-        // Tùy chỉnh giao diện bảng
-        promotionsTable.setShowGrid(false); // Tắt lưới để trông phẳng hơn
-        promotionsTable.setIntercellSpacing(new Dimension(0, 0)); // Loại bỏ khoảng cách giữa các ô
-        promotionsTable.setRowHeight(30); // Tăng chiều cao hàng
-        promotionsTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
-        promotionsTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
-        promotionsTable.getTableHeader().setBackground(new Color(97, 187, 252)); // Màu xanh nhạt cho tiêu đề bảng
-        promotionsTable.getTableHeader().setForeground(Color.WHITE);
-
-        // Tùy chỉnh màu nền xen kẽ cho các hàng
-        promotionsTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (!isSelected) {
-                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(239, 241, 249)); // Xen kẽ trắng và xám nhạt
-                }
-                // Căn giữa nội dung cho cột "ID" (cột 0) và "Giảm giá (%)" (cột 2)
-                if (column == 0 || column == 2) {
-                    ((DefaultTableCellRenderer) c).setHorizontalAlignment(SwingConstants.CENTER);
-                }
-                return c;
-            }
-        });
-
+        promotionsTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 12));
+        promotionsTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 12));
+        promotionsTable.setRowHeight(25);
+        promotionsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(promotionsTable);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(scrollPane, BorderLayout.CENTER);
 
-        // Panel nút điều khiển
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        // Panel tìm kiếm và nút
+        JPanel controlPanel = new JPanel(new BorderLayout());
+        controlPanel.setBackground(Color.WHITE);
+        controlPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
+        searchField = new JTextField(20);
+        JButton searchButton = new JButton("Tìm kiếm");
+        searchButton.setFont(new Font("IBM Plex Mono", Font.PLAIN, 12));
+        searchButton.setBackground(new Color(0, 54, 92));
+        searchButton.setForeground(Color.WHITE);
+        searchButton.addActionListener(e -> searchPromotions());
+
+        JPanel searchPanel = new JPanel();
+        searchPanel.setBackground(Color.WHITE);
+        searchPanel.add(new JLabel("Tìm kiếm:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        controlPanel.add(searchPanel, BorderLayout.NORTH);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
         JButton addButton = new JButton("Thêm");
         JButton editButton = new JButton("Sửa");
         JButton deleteButton = new JButton("Xóa");
+        JButton refreshButton = new JButton("Làm mới");
 
-        // Tùy chỉnh giao diện nút
-        styleButton(addButton);
-        styleButton(editButton);
-        styleButton(deleteButton);
+        for (JButton button : new JButton[]{addButton, editButton, deleteButton, refreshButton}) {
+            button.setFont(new Font("IBM Plex Mono", Font.PLAIN, 12));
+            button.setBackground(new Color(97, 187, 252));
+            button.setForeground(Color.WHITE);
+            buttonPanel.add(button);
+        }
 
-        buttonPanel.add(addButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(deleteButton);
-        add(buttonPanel, BorderLayout.SOUTH);
+        addButton.addActionListener(e -> addPromotion());
+        editButton.addActionListener(e -> editPromotion());
+        deleteButton.addActionListener(e -> deletePromotion());
+        refreshButton.addActionListener(e -> loadData());
 
-        // Thêm dữ liệu giả
-        addSampleData();
+        controlPanel.add(buttonPanel, BorderLayout.SOUTH);
+        add(controlPanel, BorderLayout.SOUTH);
+
+        loadData();
     }
 
-    private void styleButton(JButton button) {
-        button.setBackground(new Color(97, 187, 252)); // Màu xanh nhạt
-        button.setForeground(Color.WHITE);
-        button.setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(100, 35));
-
-        // Hiệu ứng hover
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(70, 150, 200)); // Màu xanh đậm hơn khi hover
+    private void loadData() {
+        tableModel.setRowCount(0);
+        try {
+            ResultSet rs = dbManager.select("KHUYEN_MAI", new String[]{"MaKM", "TenChuongTrinh", "MucKM", "TGBatDau", "TGKetThuc", "TrangThai"}, "");
+            int rowCount = 0;
+            while (rs.next()) {
+                String maKM = rs.getString("MaKM");
+                String tenChuongTrinh = rs.getString("TenChuongTrinh");
+                String mucKM = rs.getString("MucKM");
+                String tgBatDau = rs.getString("TGBatDau");
+                String tgKetThuc = rs.getString("TGKetThuc");
+                String trangThai = rs.getString("TrangThai");
+                System.out.println("Dữ liệu KHUYEN_MAI: " + maKM + ", " + tenChuongTrinh + ", " + mucKM + ", " + tgBatDau + ", " + tgKetThuc + ", " + trangThai);
+                tableModel.addRow(new Object[]{
+                        maKM,
+                        tenChuongTrinh,
+                        mucKM,
+                        tgBatDau,
+                        tgKetThuc,
+                        trangThai
+                });
+                rowCount++;
             }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(97, 187, 252)); // Quay lại màu gốc
-            }
-        });
+            System.out.println("Số dòng dữ liệu hiển thị trong PromotionsPanel: " + rowCount);
+            tableModel.fireTableDataChanged();
+            rs.close();
+        } catch (SQLException e) {
+            System.out.println("Lỗi tải dữ liệu khuyến mãi: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Lỗi tải dữ liệu khuyến mãi: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
-    private void addSampleData() {
-        tableModel.addRow(new Object[]{1, "Khuyến mãi Tết", 20, "01/01/2025", "10/01/2025"});
-        tableModel.addRow(new Object[]{2, "Giờ vàng", 50, "07/03/2025", "07/03/2025"});
+    private void searchPromotions() {
+        String keyword = searchField.getText().trim();
+        tableModel.setRowCount(0);
+        try {
+            String whereClause = "TenChuongTrinh LIKE '%" + keyword + "%'";
+            ResultSet rs = dbManager.select("KHUYEN_MAI", new String[]{"MaKM", "TenChuongTrinh", "MucKM", "TGBatDau", "TGKetThuc", "TrangThai"}, whereClause);
+            while (rs.next()) {
+                tableModel.addRow(new Object[]{
+                        rs.getString("MaKM"),
+                        rs.getString("TenChuongTrinh"),
+                        rs.getString("MucKM"),
+                        rs.getString("TGBatDau"),
+                        rs.getString("TGKetThuc"),
+                        rs.getString("TrangThai")
+                });
+            }
+            rs.close();
+        } catch (SQLException e) {
+            System.out.println("Lỗi tìm kiếm khuyến mãi: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Lỗi tìm kiếm: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void addPromotion() {
+        JTextField maKmField = new JTextField(10);
+        JTextField tenChuongTrinhField = new JTextField(10);
+        JTextField mucKmField = new JTextField(10);
+        JTextField tgBatDauField = new JTextField(10);
+        JTextField tgKetThucField = new JTextField(10);
+        JTextField trangThaiField = new JTextField(10);
+
+        JPanel panel = new JPanel(new GridLayout(6, 2));
+        panel.add(new JLabel("Mã khuyến mãi:"));
+        panel.add(maKmField);
+        panel.add(new JLabel("Tên chương trình:"));
+        panel.add(tenChuongTrinhField);
+        panel.add(new JLabel("Mức khuyến mãi:"));
+        panel.add(mucKmField);
+        panel.add(new JLabel("Thời gian bắt đầu (yyyy-MM-dd HH:mm:ss):"));
+        panel.add(tgBatDauField);
+        panel.add(new JLabel("Thời gian kết thúc (yyyy-MM-dd HH:mm:ss):"));
+        panel.add(tgKetThucField);
+        panel.add(new JLabel("Trạng thái:"));
+        panel.add(trangThaiField);
+
+        int result = JOptionPane.showConfirmDialog(this, panel, "Thêm khuyến mãi", JOptionPane.OK_CANCEL_OPTION);
+        if (result == JOptionPane.OK_OPTION) {
+            try {
+                String maKm = maKmField.getText();
+                String tenChuongTrinh = tenChuongTrinhField.getText();
+                String mucKm = mucKmField.getText();
+                String tgBatDau = tgBatDauField.getText();
+                String tgKetThuc = tgKetThucField.getText();
+                String trangThai = trangThaiField.getText();
+                dbManager.insert("KHUYEN_MAI", new Object[]{maKm, tenChuongTrinh, mucKm, tgBatDau, tgKetThuc, trangThai});
+                JOptionPane.showMessageDialog(this, "Thêm khuyến mãi thành công!");
+                loadData();
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Lỗi thêm khuyến mãi: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void editPromotion() {
+        int selectedRow = promotionsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một khuyến mãi để sửa!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String maKm = (String) tableModel.getValueAt(selectedRow, 0);
+        JTextField tenChuongTrinhField = new JTextField(tableModel.getValueAt(selectedRow, 1).toString(), 10);
+        JTextField mucKmField = new JTextField(tableModel.getValueAt(selectedRow, 2).toString(), 10);
+        JTextField tgBatDauField = new JTextField(tableModel.getValueAt(selectedRow, 3).toString(), 10);
+        JTextField tgKetThucField = new JTextField(tableModel.getValueAt(selectedRow, 4).toString(), 10);
+        JTextField trangThaiField = new JTextField(tableModel.getValueAt(selectedRow, 5).toString(), 10);
+
+        JPanel panel = new JPanel(new GridLayout(5, 2));
+        panel.add(new JLabel("Tên chương trình:"));
+        panel.add(tenChuongTrinhField);
+        panel.add(new JLabel("Mức khuyến mãi:"));
+        panel.add(mucKmField);
+        panel.add(new JLabel("Thời gian bắt đầu (yyyy-MM-dd HH:mm:ss):"));
+        panel.add(tgBatDauField);
+        panel.add(new JLabel("Thời gian kết thúc (yyyy-MM-dd HH:mm:ss):"));
+        panel.add(tgKetThucField);
+        panel.add(new JLabel("Trạng thái:"));
+        panel.add(trangThaiField);
+
+        int result = JOptionPane.showConfirmDialog(this, panel, "Sửa khuyến mãi", JOptionPane.OK_CANCEL_OPTION);
+        if (result == JOptionPane.OK_OPTION) {
+            try {
+                String tenChuongTrinh = tenChuongTrinhField.getText();
+                String mucKm = mucKmField.getText();
+                String tgBatDau = tgBatDauField.getText();
+                String tgKetThuc = tgKetThucField.getText();
+                String trangThai = trangThaiField.getText();
+                dbManager.update("KHUYEN_MAI", new String[]{"TenChuongTrinh", "MucKM", "TGBatDau", "TGKetThuc", "TrangThai"},
+                        new Object[]{tenChuongTrinh, mucKm, tgBatDau, tgKetThuc, trangThai}, "MaKM = '" + maKm + "'");
+                JOptionPane.showMessageDialog(this, "Sửa khuyến mãi thành công!");
+                loadData();
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Lỗi sửa khuyến mãi: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void deletePromotion() {
+        int selectedRow = promotionsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một khuyến mãi để xóa!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String maKm = (String) tableModel.getValueAt(selectedRow, 0);
+        int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc chắn muốn xóa khuyến mãi này?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                dbManager.delete("KHUYEN_MAI", "MaKM = '" + maKm + "'");
+                JOptionPane.showMessageDialog(this, "Xóa khuyến mãi thành công!");
+                loadData();
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Lỗi xóa khuyến mãi: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 }
