@@ -6,20 +6,6 @@
     "configurations": [
         {
             "type": "java",
-            "name": "test",
-            "request": "launch",
-            "mainClass": "views.test",
-            "projectName": "NetManager_JavaApp_329fd5fc"
-        },
-        {
-            "type": "java",
-            "name": "LoginPanel",
-            "request": "launch",
-            "mainClass": "views.LoginPanel",
-            "projectName": "NetManager_JavaApp_329fd5fc"
-        },
-        {
-            "type": "java",
             "name": "MainFrame",
             "request": "launch",
             "mainClass": "views.MainFrame",

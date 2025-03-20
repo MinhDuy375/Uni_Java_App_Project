@@ -4,18 +4,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 
-
-class ConnectSQLite {
-    public static void main(String[] args) {
-        // Đường dẫn tới file .db
-        String dbPath = "jdbc:sqlite:Uni_JavaDeskApp.db"; // Đường dẫn tương đối
-        // Nếu dùng đường dẫn tuyệt đối: "jdbc:sqlite:C:/path/to/mydatabase.db"
-    }
-}
 public class InventoryPanel extends JPanel {
     private JTable inventoryTable;
     private DefaultTableModel tableModel;
