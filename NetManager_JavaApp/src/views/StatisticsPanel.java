@@ -1,15 +1,13 @@
 package views;
 
-import com.itextpdf.kernel.font.PdfFont;
-import com.itextpdf.kernel.font.PdfFontFactory;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Text;
-import com.itextpdf.io.font.PdfEncodings;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
+import org.jfree.chart.ChartUtilities; // Sử dụng ChartUtilities thay vì ChartUtils
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.CategoryAxis;
 import org.jfree.chart.axis.CategoryLabelPositions;
@@ -32,6 +30,7 @@ public class StatisticsPanel extends JPanel {
     private JLabel totalRevenueLabel, totalOrdersLabel;
     private ChartPanel chartPanel;
     private DefaultCategoryDataset dataset;
+    private JFreeChart chart; // Lưu chart để sử dụng khi in PDF
 
     public StatisticsPanel() {
         dbManager = new DatabaseManager();
@@ -64,7 +63,7 @@ public class StatisticsPanel extends JPanel {
 
         // Khởi tạo biểu đồ
         dataset = new DefaultCategoryDataset();
-        JFreeChart chart = createChart(dataset);
+        chart = createChart(dataset); // Lưu chart để sử dụng sau
         chartPanel = new ChartPanel(chart);
         chartPanel.setPreferredSize(new Dimension(800, 400));
         chartPanel.setBackground(Color.WHITE);
@@ -200,30 +199,71 @@ public class StatisticsPanel extends JPanel {
                 filePath += ".pdf";
             }
 
-            try {
-                PdfWriter writer = new PdfWriter(filePath);
-                PdfDocument pdf = new PdfDocument(writer);
-                Document document = new Document(pdf);
+            File tempChartFile = null;
+            try (PDDocument document = new PDDocument()) {
+                // Tạo một trang mới
+                PDPage page = new PDPage();
+                document.addPage(page);
 
-                // Tạo font đậm hỗ trợ tiếng Việt
-                PdfFont boldFont = PdfFontFactory.createFont("fonts/arialbd.ttf", PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
-                PdfFont regularFont = PdfFontFactory.createFont("fonts/arial.ttf", PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+                // Nhúng font Roboto-Medium.ttf với đường dẫn tuyệt đối
+                File fontFile = new File("NetManager_JavaApp/resources/fonts/Roboto-Medium.ttf");
+                System.out.println("Đường dẫn font: " + fontFile.getAbsolutePath()); // In đường dẫn để kiểm tra
+                if (!fontFile.exists()) {
+                    throw new IOException("File font Roboto-Medium.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
+                }
 
-                // Tạo tiêu đề với font đậm
-                Text titleText = new Text("BÁO CÁO THỐNG KÊ").setFont(boldFont).setFontSize(16);
-                Paragraph titleParagraph = new Paragraph(titleText);
-                document.add(titleParagraph);
+                PDType0Font font;
+                try {
+                    font = PDType0Font.load(document, fontFile);
+                } catch (IOException e) {
+                    throw new IOException("Không thể nhúng font Roboto-Medium.ttf: " + e.getMessage(), e);
+                }
 
-                // Thêm các đoạn văn bản khác với font thường
-                document.add(new Paragraph(totalRevenueLabel.getText()).setFont(regularFont));
-                document.add(new Paragraph(totalOrdersLabel.getText()).setFont(regularFont));
+                // Lưu biểu đồ thành file hình ảnh tạm thời
+                tempChartFile = new File("temp_chart.png");
+                ChartUtilities.saveChartAsPNG(tempChartFile, chart, 500, 300); // Sử dụng ChartUtilities thay vì ChartUtils
 
-                document.close();
+                // Tạo nội dung cho trang
+                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                    // Tiêu đề
+                    contentStream.beginText();
+                    contentStream.setFont(font, 16);
+                    contentStream.newLineAtOffset(50, 750);
+                    contentStream.showText("BÁO CÁO THỐNG KÊ");
+                    contentStream.endText();
+
+                    // Tổng doanh thu
+                    contentStream.beginText();
+                    contentStream.setFont(font, 12);
+                    contentStream.newLineAtOffset(50, 720);
+                    contentStream.showText(totalRevenueLabel.getText());
+                    contentStream.endText();
+
+                    // Tổng số hóa đơn
+                    contentStream.beginText();
+                    contentStream.setFont(font, 12);
+                    contentStream.newLineAtOffset(50, 700);
+                    contentStream.showText(totalOrdersLabel.getText());
+                    contentStream.endText();
+
+                    // Chèn biểu đồ vào PDF
+                    PDImageXObject chartImage = PDImageXObject.createFromFile(tempChartFile.getAbsolutePath(), document);
+                    float chartWidth = 500; // Chiều rộng biểu đồ trong PDF
+                    float chartHeight = 300; // Chiều cao biểu đồ trong PDF
+                    float scale = 0.8f; // Tỷ lệ thu nhỏ (80%)
+                    contentStream.drawImage(chartImage, 50, 350, chartWidth * scale, chartHeight * scale); // Vị trí (50, 350)
+                }
+
+                // Lưu file PDF
+                document.save(filePath);
                 JOptionPane.showMessageDialog(this, "Xuất PDF thành công tại: " + filePath, "Thông báo", JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException e) {
-                JOptionPane.showMessageDialog(this, "Lỗi khi tạo font hoặc xuất PDF: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
-            } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Lỗi khi xuất PDF: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            } finally {
+                // Xóa file hình ảnh tạm thời
+                if (tempChartFile != null && tempChartFile.exists()) {
+                    tempChartFile.delete();
+                }
             }
         }
     }
