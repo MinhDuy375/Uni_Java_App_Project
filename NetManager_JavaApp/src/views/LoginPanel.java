@@ -174,7 +174,7 @@ public class LoginPanel extends JFrame {
     private boolean checkLogin(String username, String password, String role) {
         String query = "SELECT * FROM TAI_KHOAN WHERE username=? AND password=? AND role=?";
 
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:D:/ProjectQuanNeet/NetManager_JavaApp/resources/Uni_JavaDeskApp.db");
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:../../resources/Uni_JavaDeskApp.db");
              PreparedStatement pstmt = conn.prepareStatement(query)) {
 
             pstmt.setString(1, username);

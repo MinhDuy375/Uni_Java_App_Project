@@ -14,7 +14,7 @@ public class DatabaseManager {
 
     private static String initializeDatabaseUrl() {
         // Cập nhật đường dẫn tuyệt đối mới
-        String dbPath = "D:/ProjectQuanNeet/NetManager_JavaApp/resources/" + DB_NAME;
+        String dbPath = System.getProperty("user.dir") + "/NetManager_JavaApp/resources/" + DB_NAME;
         File dbFile = new File(dbPath);
         System.out.println("Đường dẫn file cơ sở dữ liệu: " + dbFile.getAbsolutePath());
 

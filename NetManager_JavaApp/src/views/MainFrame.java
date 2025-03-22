@@ -2,18 +2,16 @@ package views;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
+import java.io.IOException;
 
 public class MainFrame extends JFrame {
     private JPanel menuPanel;
     private JPanel contentPanel;
     private CardLayout cardLayout;
-    private List<JButton> menuButtons = new ArrayList<>();
+    private java.util.List<JButton> menuButtons = new java.util.ArrayList<>();
     private JButton selectedButton = null;
 
-    // Panels for submenus
     private JPanel subMenuManageInfo;
     private JPanel subMenuServiceMenu;
     private boolean isSubMenuManageInfoVisible = false;
@@ -30,19 +28,41 @@ public class MainFrame extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.GRAY);
 
-        // Header Panel (unchanged)
+        // Header Panel
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(Color.WHITE);
         headerPanel.setPreferredSize(new Dimension(1127, 80));
         headerPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, new Color(173, 173, 173, 200)));
 
+        // Đảm bảo netCoBlock giữ nguyên kích thước
         JPanel netCoBlock = new JPanel(new GridBagLayout());
         netCoBlock.setBackground(new Color(97, 187, 252));
         netCoBlock.setPreferredSize(new Dimension(235, 80));
-        ImageIcon imageIcon = new ImageIcon(getClass().getResource("/views/NétCỏ.png"));
-        JLabel imageLabel = new JLabel(imageIcon);
+        netCoBlock.setMinimumSize(new Dimension(235, 80));
+        netCoBlock.setMaximumSize(new Dimension(235, 80)); // Ngăn mở rộng khi phóng to
+
+        // Logo "Nét Cỏ"
+        JLabel imageLabel = new JLabel("NétCỏ", SwingConstants.CENTER);
+        try {
+            // Nhúng font Pacifico-Regular.ttf
+            File fontFile = new File("NetManager_JavaApp/resources/fonts/Pacifico-Regular.ttf");
+            if (!fontFile.exists()) {
+                throw new IOException("File font Pacifico-Regular.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
+            }
+            Font pacificoFont = Font.createFont(Font.TRUETYPE_FONT, fontFile).deriveFont(40f); // Kích thước font 40
+            imageLabel.setFont(pacificoFont);
+        } catch (FontFormatException | IOException e) {
+            System.out.println("Lỗi khi nhúng font Pacifico-Regular: " + e.getMessage());
+            imageLabel.setFont(new Font("Serif", Font.BOLD, 30)); // Font dự phòng nếu lỗi
+        }
+        imageLabel.setForeground(Color.WHITE); // Màu chữ trắng
         imageLabel.setPreferredSize(new Dimension(150, 40));
-        netCoBlock.add(imageLabel);
+        // Căn giữa logo trong netCoBlock
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.CENTER;
+        netCoBlock.add(imageLabel, gbc);
 
         JButton bellButton = new JButton("\uD83D\uDD14");
         bellButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -70,9 +90,9 @@ public class MainFrame extends JFrame {
         adminMenu.add(logoutItem);
 
         final boolean[] menuVisible = { false };
-        account.addMouseListener(new MouseAdapter() {
+        account.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
-            public void mousePressed(MouseEvent e) {
+            public void mousePressed(java.awt.event.MouseEvent e) {
                 if (!menuVisible[0]) {
                     adminMenu.show(account, 11, 51);
                 } else {
@@ -109,7 +129,6 @@ public class MainFrame extends JFrame {
         contentPanel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, Color.WHITE));
         paddingPanel.add(contentPanel, BorderLayout.CENTER);
 
-        // Add content panels
         contentPanel.add(new ManageComputer(), "Quản lý bàn máy");
         contentPanel.add(createContentPanel("Menu dịch vụ"), "Menu dịch vụ");
         contentPanel.add(new InventoryPanel(), "Kho hàng");
@@ -117,7 +136,6 @@ public class MainFrame extends JFrame {
         contentPanel.add(new StaffPanel(), "Quản lý thông tin");
         contentPanel.add(new StatisticsPanel(), "Báo cáo - Thống kê");
 
-        // Main menu items
         String[] menuItems = {
                 "Quản lý bàn máy",
                 "Menu dịch vụ",
@@ -143,24 +161,18 @@ public class MainFrame extends JFrame {
             menuButtons.add(button);
         }
 
-        // Submenu panels with adjusted green left border
         subMenuManageInfo = new JPanel();
         subMenuManageInfo.setLayout(new BoxLayout(subMenuManageInfo, BoxLayout.Y_AXIS));
         subMenuManageInfo.setBackground(new Color(0, 54, 92));
-        subMenuManageInfo.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(97, 187, 252))); // Light blue
-                                                                                                           // border
+        subMenuManageInfo.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(97, 187, 252)));
 
         subMenuServiceMenu = new JPanel();
         subMenuServiceMenu.setLayout(new BoxLayout(subMenuServiceMenu, BoxLayout.Y_AXIS));
         subMenuServiceMenu.setBackground(new Color(0, 54, 92));
-        subMenuServiceMenu.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(97, 187, 252))); // Light
-                                                                                                            // blue
-                                                                                                            // border
+        subMenuServiceMenu.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(97, 187, 252)));
 
-        // Initially build the menu
         rebuildMenu();
 
-        // Add main panel
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         mainPanel.add(menuPanel, BorderLayout.WEST);
         mainPanel.add(paddingPanel, BorderLayout.CENTER);
@@ -171,10 +183,8 @@ public class MainFrame extends JFrame {
     private void rebuildMenu() {
         menuPanel.removeAll();
 
-        // Add "Quản lý bàn máy"
         menuPanel.add(menuButtons.get(0));
 
-        // Add "Menu dịch vụ" and its submenu if visible
         menuPanel.add(menuButtons.get(1));
         if (isSubMenuServiceMenuVisible) {
             subMenuServiceMenu.removeAll();
@@ -195,10 +205,8 @@ public class MainFrame extends JFrame {
             menuPanel.add(subMenuServiceMenu);
         }
 
-        // Add "Khuyến mãi"
         menuPanel.add(menuButtons.get(2));
 
-        // Add "Quản lý thông tin" and its submenu if visible
         menuPanel.add(menuButtons.get(3));
         if (isSubMenuManageInfoVisible) {
             subMenuManageInfo.removeAll();
@@ -219,7 +227,6 @@ public class MainFrame extends JFrame {
             menuPanel.add(subMenuManageInfo);
         }
 
-        // Add "Báo cáo - Thống kê" last
         menuPanel.add(menuButtons.get(4));
 
         revalidate();
@@ -272,16 +279,16 @@ public class MainFrame extends JFrame {
         button.setBorder(BorderFactory.createEmptyBorder(10, 30, 15, 20));
         button.setBackground(new Color(0, 54, 92));
 
-        button.addMouseListener(new MouseAdapter() {
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) {
+            public void mouseEntered(java.awt.event.MouseEvent e) {
                 if (button != selectedButton) {
                     button.setBackground(new Color(70, 100, 120));
                 }
             }
 
             @Override
-            public void mouseExited(MouseEvent e) {
+            public void mouseExited(java.awt.event.MouseEvent e) {
                 if (button != selectedButton) {
                     button.setBackground(new Color(0, 54, 92));
                 }
@@ -300,19 +307,19 @@ public class MainFrame extends JFrame {
         button.setFont(new Font("IBM Plex Mono", Font.BOLD, 13));
         button.setForeground(Color.WHITE);
         button.setHorizontalAlignment(SwingConstants.LEFT);
-        button.setBorder(BorderFactory.createEmptyBorder(5, 50, 5, 20)); // Indent submenu items
+        button.setBorder(BorderFactory.createEmptyBorder(5, 50, 5, 20));
         button.setBackground(new Color(0, 54, 92));
 
-        button.addMouseListener(new MouseAdapter() {
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) {
+            public void mouseEntered(java.awt.event.MouseEvent e) {
                 if (button != selectedButton) {
                     button.setBackground(new Color(70, 100, 120));
                 }
             }
 
             @Override
-            public void mouseExited(MouseEvent e) {
+            public void mouseExited(java.awt.event.MouseEvent e) {
                 if (button != selectedButton) {
                     button.setBackground(new Color(0, 54, 92));
                 }
