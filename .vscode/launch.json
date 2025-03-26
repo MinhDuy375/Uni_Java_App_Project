@@ -1,0 +1,77 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "NestedBoxLayoutExample",
+            "request": "launch",
+            "mainClass": "views.NestedBoxLayoutExample",
+            "projectName": "net_project_c0335341"
+        },
+        {
+            "type": "java",
+            "name": "BoxLayoutAlignLeftExample",
+            "request": "launch",
+            "mainClass": "views.BoxLayoutAlignLeftExample",
+            "projectName": "net_project_c0335341"
+        },
+        {
+            "type": "java",
+            "name": "LoginFrame",
+            "request": "launch",
+            "mainClass": "views.LoginFrame",
+            "projectName": "net_project_c0335341"
+        },
+        {
+            "type": "java",
+            "name": "MinhHoaFrame",
+            "request": "launch",
+            "mainClass": "views.MinhHoaFrame",
+            "projectName": "net_project_c0335341"
+        },
+        {
+            "type": "java",
+            "name": "LoginPanel",
+            "request": "launch",
+            "mainClass": "views.LoginPanel",
+            "projectName": "net_project_c0335341"
+        },
+        {
+            "type": "java",
+            "name": "MainFrame",
+            "request": "launch",
+            "mainClass": "views.MainFrame",
+            "projectName": "net_project_c0335341"
+        },
+        {
+            "type": "java",
+            "name": "MainFrame",
+            "request": "launch",
+            "mainClass": "views.MainFrame",
+            "projectName": "Uni_Java_App_Project_f2ab0c19"
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "LoginPanel",
+            "request": "launch",
+            "mainClass": "views.LoginPanel",
+            "projectName": "Uni_Java_App_Project_16409243"
+        },
+        {
+            "type": "java",
+            "name": "MainFrame",
+            "request": "launch",
+            "mainClass": "views.MainFrame",
+            "projectName": "Uni_Java_App_Project_16409243"
+        }
+    ]
+}
