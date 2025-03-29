@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "MainFrame",
+            "request": "launch",
+            "mainClass": "views.MainFrame",
+            "projectName": "javaSaver_1df628dd"
+        },
+        {
+            "type": "java",
             "name": "NestedBoxLayoutExample",
             "request": "launch",
             "mainClass": "views.NestedBoxLayoutExample",

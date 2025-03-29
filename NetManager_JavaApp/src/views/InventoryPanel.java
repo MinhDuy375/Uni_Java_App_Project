@@ -61,19 +61,23 @@ public class InventoryPanel extends JPanel {
         JButton addButton = new JButton("Thêm");
         JButton editButton = new JButton("Sửa");
         JButton deleteButton = new JButton("Xóa");
+        JButton refreshButton = new JButton("Làm mới");
 
         styleButton(addButton);
         styleButton(editButton);
         styleButton(deleteButton);
+        styleButton(refreshButton);
 
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
+        buttonPanel.add(refreshButton);
         add(buttonPanel, BorderLayout.SOUTH);
 
         addButton.addActionListener(e -> addInventory());
         editButton.addActionListener(e -> editInventory());
         deleteButton.addActionListener(e -> deleteInventory());
+        refreshButton.addActionListener(e -> loadData());
 
         loadData();
     }
@@ -123,8 +127,11 @@ public class InventoryPanel extends JPanel {
         JTextField tenSpField = new JTextField(10);
         JTextField tonDuField = new JTextField(5);
         JTextField giaNhapField = new JTextField(10);
+        JTextField giaBanField = new JTextField(10);
+        JComboBox<String> danhMucCombo = new JComboBox<>(new String[] { "Đồ ăn", "Đồ uống" });
+        JComboBox<String> dangBanCombo = new JComboBox<>(new String[] { "Có", "Không" });
 
-        JPanel panel = new JPanel(new GridLayout(4, 2));
+        JPanel panel = new JPanel(new GridLayout(6, 2));
         panel.add(new JLabel("Mã sản phẩm:"));
         panel.add(maSpField);
         panel.add(new JLabel("Tên sản phẩm:"));
@@ -133,6 +140,12 @@ public class InventoryPanel extends JPanel {
         panel.add(tonDuField);
         panel.add(new JLabel("Giá nhập (VNĐ):"));
         panel.add(giaNhapField);
+        panel.add(new JLabel("Giá bán (VNĐ):"));
+        panel.add(giaBanField);
+        panel.add(new JLabel("Danh mục:"));
+        panel.add(danhMucCombo);
+        panel.add(new JLabel("Đang bán:"));
+        panel.add(dangBanCombo);
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Thêm sản phẩm", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
@@ -141,7 +154,31 @@ public class InventoryPanel extends JPanel {
                 String tenSp = tenSpField.getText();
                 int tonDu = Integer.parseInt(tonDuField.getText());
                 int giaNhap = Integer.parseInt(giaNhapField.getText());
+                double giaBan = Double.parseDouble(giaBanField.getText());
+                String danhMuc = (String) danhMucCombo.getSelectedItem();
+                String dangBan = (String) dangBanCombo.getSelectedItem();
+
+                if (maSp.isEmpty() || tenSp.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Vui lòng điền đầy đủ thông tin!", "Cảnh báo",
+                            JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                // Kiểm tra xem MaSP đã tồn tại trong KHO chưa
+                ResultSet rs = dbManager.select("KHO", new String[] { "MaSP" }, "MaSP = ?", new Object[] { maSp });
+                if (rs.next()) {
+                    JOptionPane.showMessageDialog(this, "Mã sản phẩm đã tồn tại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    rs.close();
+                    return;
+                }
+                rs.close();
+
+                // Thêm vào bảng KHO
                 dbManager.insert("KHO", new Object[] { maSp, tenSp, tonDu, null, giaNhap, null });
+
+                // Thêm vào bảng MON_AN
+                dbManager.insert("MON_AN", new Object[] { maSp, tenSp, giaBan, danhMuc, dangBan });
+
                 loadData();
             } catch (SQLException | NumberFormatException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi thêm sản phẩm: " + e.getMessage(), "Lỗi",
@@ -162,14 +199,39 @@ public class InventoryPanel extends JPanel {
         JTextField tenSpField = new JTextField(tableModel.getValueAt(selectedRow, 1).toString(), 10);
         JTextField tonDuField = new JTextField(tableModel.getValueAt(selectedRow, 2).toString(), 5);
         JTextField giaNhapField = new JTextField(tableModel.getValueAt(selectedRow, 3).toString(), 10);
+        JTextField giaBanField = new JTextField(10);
+        JComboBox<String> danhMucCombo = new JComboBox<>(new String[] { "Đồ ăn", "Đồ uống" });
+        JComboBox<String> dangBanCombo = new JComboBox<>(new String[] { "Có", "Không" });
 
-        JPanel panel = new JPanel(new GridLayout(3, 2));
+        // Lấy thông tin hiện tại từ bảng MON_AN
+        try {
+            ResultSet rs = dbManager.select("MON_AN", new String[] { "GiaBan", "DanhMuc", "DangBan" }, "MaSP = ?",
+                    new Object[] { maSp });
+            if (rs.next()) {
+                giaBanField.setText(String.valueOf(rs.getDouble("GiaBan")));
+                danhMucCombo.setSelectedItem(rs.getString("DanhMuc"));
+                dangBanCombo.setSelectedItem(rs.getString("DangBan") != null ? rs.getString("DangBan") : "Không");
+            }
+            rs.close();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Lỗi lấy thông tin món: " + e.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        JPanel panel = new JPanel(new GridLayout(5, 2));
         panel.add(new JLabel("Tên sản phẩm:"));
         panel.add(tenSpField);
         panel.add(new JLabel("Số lượng:"));
         panel.add(tonDuField);
         panel.add(new JLabel("Giá nhập (VNĐ):"));
         panel.add(giaNhapField);
+        panel.add(new JLabel("Giá bán (VNĐ):"));
+        panel.add(giaBanField);
+        panel.add(new JLabel("Danh mục:"));
+        panel.add(danhMucCombo);
+        panel.add(new JLabel("Đang bán:"));
+        panel.add(dangBanCombo);
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Sửa sản phẩm", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
@@ -177,8 +239,18 @@ public class InventoryPanel extends JPanel {
                 String tenSp = tenSpField.getText();
                 int tonDu = Integer.parseInt(tonDuField.getText());
                 int giaNhap = Integer.parseInt(giaNhapField.getText());
+                double giaBan = Double.parseDouble(giaBanField.getText());
+                String danhMuc = (String) danhMucCombo.getSelectedItem();
+                String dangBan = (String) dangBanCombo.getSelectedItem();
+
+                // Cập nhật bảng KHO
                 dbManager.update("KHO", new String[] { "TenSP", "TonDu", "GiaNhap" },
                         new Object[] { tenSp, tonDu, giaNhap }, "MaSP = ?", new Object[] { maSp });
+
+                // Cập nhật bảng MON_AN
+                dbManager.update("MON_AN", new String[] { "TenSP", "GiaBan", "DanhMuc", "DangBan" },
+                        new Object[] { tenSp, giaBan, danhMuc, dangBan }, "MaSP = ?", new Object[] { maSp });
+
                 loadData();
             } catch (SQLException | NumberFormatException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi sửa sản phẩm: " + e.getMessage(), "Lỗi",
@@ -213,6 +285,10 @@ public class InventoryPanel extends JPanel {
 
                 // Xóa sản phẩm từ bảng KHO
                 dbManager.delete("KHO", "MaSP = ?", new Object[] { maSp });
+
+                // Xóa sản phẩm từ bảng MON_AN
+                dbManager.delete("MON_AN", "MaSP = ?", new Object[] { maSp });
+
                 loadData();
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi xóa sản phẩm: " + e.getMessage(), "Lỗi",

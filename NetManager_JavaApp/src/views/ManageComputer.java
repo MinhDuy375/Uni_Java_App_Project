@@ -57,6 +57,8 @@ public class ManageComputer extends JPanel {
         setLayout(new BorderLayout());
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setDividerLocation(500);
+        splitPane.setResizeWeight(0.6);
+        splitPane.setEnabled(false);
 
         leftPanel = createLeftPanel();
         splitPane.setLeftComponent(leftPanel);
@@ -77,7 +79,7 @@ public class ManageComputer extends JPanel {
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(130, 35));
+        button.setPreferredSize(new Dimension(200, 30));
 
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -97,29 +99,43 @@ public class ManageComputer extends JPanel {
         panel.setLayout(new BorderLayout(10, 10));
         panel.setBackground(Color.WHITE);
 
-        JPanel controlPanel = new JPanel(new FlowLayout());
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton addButton = new JButton("Thêm máy");
         JButton transferButton = new JButton("Chuyển máy");
-        JComboBox<String> statusFilter = new JComboBox<>(
-                new String[] { "Tất cả", "Sẵn sàng", "Đang sử dụng", "Bảo trì" });
 
         styleButton(addButton);
         styleButton(transferButton);
 
         addButton.addActionListener(e -> addComputer());
         transferButton.addActionListener(e -> transferComputer());
-        statusFilter.addActionListener(e -> filterComputers((String) statusFilter.getSelectedItem()));
 
         controlPanel.add(addButton);
         controlPanel.add(transferButton);
-        controlPanel.add(new JLabel("Lọc: "));
-        controlPanel.add(statusFilter);
+
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton editButton = new JButton("Sửa thông tin máy");
+        JComboBox<String> statusFilter = new JComboBox<>(
+                new String[] { "Tất cả", "Sẵn sàng", "Đang sử dụng", "Bảo trì" });
+
+        styleButton(editButton);
+
+        editButton.addActionListener(e -> editComputerInfo());
+        statusFilter.addActionListener(e -> filterComputers((String) statusFilter.getSelectedItem()));
+
+        filterPanel.add(editButton);
+        filterPanel.add(new JLabel("Lọc: "));
+        filterPanel.add(statusFilter);
+
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        topPanel.add(controlPanel);
+        topPanel.add(filterPanel);
 
         JPanel computersGrid = new JPanel();
         loadComputers(computersGrid);
         JScrollPane scrollPane = new JScrollPane(computersGrid);
 
-        panel.add(controlPanel, BorderLayout.NORTH);
+        panel.add(topPanel, BorderLayout.NORTH);
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
@@ -164,6 +180,8 @@ public class ManageComputer extends JPanel {
     private JPanel createComputerBlock(Integer id, String soMay, String status) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setPreferredSize(new Dimension(100, 100));
+        panel.setMaximumSize(new Dimension(100, 100));
+        panel.setMinimumSize(new Dimension(100, 100));
         panel.setBorder(BorderFactory.createLineBorder(Color.GRAY, 2, true));
 
         switch (status) {
@@ -195,8 +213,8 @@ public class ManageComputer extends JPanel {
     }
 
     private JPanel createRightPanel() {
-        JPanel panel = new JPanel(new GridLayout(10, 2, 10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel panel = new JPanel(new GridLayout(10, 2, 5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         selectedComputerLabel = new JLabel("Chưa chọn máy");
         timeLabel = new JLabel("Thời gian: 00:00:00");
@@ -211,23 +229,31 @@ public class ManageComputer extends JPanel {
         customerComboBox.addItem("");
         loadCustomers();
 
+        JLabel promotionLabel = new JLabel("Mã giảm giá:");
+        JComboBox<String> promotionComboBox = new JComboBox<>();
+        promotionComboBox.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
+        promotionComboBox.addItem("Không áp dụng");
+        loadPromotions(promotionComboBox);
+
         JButton startButton = new JButton("Bắt đầu sử dụng");
         JButton payButton = new JButton("Thanh toán");
         JButton printButton = new JButton("In hóa đơn");
-        JButton editButton = new JButton("Sửa thông tin máy");
         JButton resetButton = new JButton("Làm mới");
 
         styleButton(startButton);
         styleButton(payButton);
         styleButton(printButton);
-        styleButton(editButton);
         styleButton(resetButton);
 
         startButton.addActionListener(e -> startUsing());
-        payButton.addActionListener(e -> processPayment());
+        payButton.addActionListener(e -> processPayment(promotionComboBox));
         printButton.addActionListener(e -> printInvoice());
-        editButton.addActionListener(e -> editComputerInfo());
-        resetButton.addActionListener(e -> resetComputerInfo());
+        resetButton.addActionListener(e -> {
+            resetComputerInfo();
+            promotionComboBox.setSelectedIndex(0);
+        });
+
+        promotionComboBox.addActionListener(e -> updateTotalWithPromotion(promotionComboBox));
 
         panel.add(new JLabel("Máy tính:"));
         panel.add(selectedComputerLabel);
@@ -241,10 +267,11 @@ public class ManageComputer extends JPanel {
         panel.add(totalLabel);
         panel.add(customerLabel);
         panel.add(customerComboBox);
+        panel.add(promotionLabel);
+        panel.add(promotionComboBox);
         panel.add(startButton);
         panel.add(payButton);
         panel.add(printButton);
-        panel.add(editButton);
         panel.add(resetButton);
 
         return panel;
@@ -265,6 +292,25 @@ public class ManageComputer extends JPanel {
             customerRs.close();
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi tải danh sách khách hàng: " + e.getMessage());
+        }
+    }
+
+    private void loadPromotions(JComboBox<String> promotionComboBox) {
+        try {
+            ResultSet rs = dbManager.select("KHUYEN_MAI",
+                    new String[] { "MaKM", "TenChuongTrinh", "MucKM" },
+                    "TrangThai = ?", new Object[] { "Hoạt động" });
+            while (rs.next()) {
+                String maKM = rs.getString("MaKM");
+                String tenChuongTrinh = rs.getString("TenChuongTrinh");
+                double mucKM = rs.getDouble("MucKM");
+                int discountPercentage = (int) ((1 - mucKM) * 100);
+                promotionComboBox.addItem(maKM + " - " + tenChuongTrinh + " (" + discountPercentage + "%)");
+            }
+            rs.close();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải danh sách mã giảm giá: " + e.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -300,15 +346,6 @@ public class ManageComputer extends JPanel {
         String hinhThucThanhToan = "Tiền mặt";
         double khuyenMai = 0.0;
         double soTien = 0.0;
-
-        System.out.println("maHD: " + maHD);
-        System.out.println("maKH: " + maKH);
-        System.out.println("currentEmployeeId: " + currentEmployeeId);
-        System.out.println("selectedComputerId: " + selectedComputerId);
-        System.out.println("ngay: " + ngay);
-        System.out.println("khuyenMai: " + khuyenMai);
-        System.out.println("soTien: " + soTien);
-        System.out.println("hinhThucThanhToan: " + hinhThucThanhToan);
 
         try {
             ResultSet rs = dbManager.select("BAN_MAY",
@@ -463,13 +500,53 @@ public class ManageComputer extends JPanel {
                 }
 
                 double totalBeforeDiscount = fee + serviceFee;
-                double totalAfterDiscount = totalBeforeDiscount * (1 - khuyenMai);
+                double totalAfterDiscount = totalBeforeDiscount * khuyenMai;
 
                 timeLabel.setText(String.format("Thời gian: %02d:%02d:%02d", hours, minutes, seconds));
                 feeLabel.setText(String.format("Tiền giờ: %.2f VNĐ", fee));
                 totalLabel.setText(String.format("Tổng tiền: %.2f VNĐ", totalAfterDiscount));
             }
         }
+    }
+
+    private void updateTotalWithPromotion(JComboBox<String> promotionComboBox) {
+        if (selectedComputerId == null || !computerUsageStatus.getOrDefault(selectedComputerId, false)) {
+            totalLabel.setText("Tổng tiền: 0 VNĐ");
+            return;
+        }
+
+        Long startTime = computerStartTimes.get(selectedComputerId);
+        if (startTime == null) {
+            totalLabel.setText("Tổng tiền: 0 VNĐ");
+            return;
+        }
+
+        long secondsUsed = (System.currentTimeMillis() - startTime) / 1000;
+        double hoursUsed = secondsUsed / 3600.0;
+        double fee = hoursUsed * hourlyRate;
+        int serviceFee = computerServiceFees.getOrDefault(selectedComputerId, 0);
+        double totalBeforeDiscount = fee + serviceFee;
+
+        double khuyenMai = 1.0; // Mặc định không giảm giá
+        String selectedPromotion = (String) promotionComboBox.getSelectedItem();
+        if (selectedPromotion != null && !selectedPromotion.equals("Không áp dụng")) {
+            String maKM = selectedPromotion.split(" - ")[0];
+            try {
+                ResultSet rs = dbManager.select("KHUYEN_MAI", new String[] { "MucKM" }, "MaKM = ?",
+                        new Object[] { maKM });
+                if (rs.next()) {
+                    khuyenMai = rs.getDouble("MucKM"); // Lấy hệ số khuyến mãi (ví dụ: 0.7)
+                }
+                rs.close();
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Lỗi lấy thông tin mã giảm giá: " + e.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+
+        double totalAfterDiscount = totalBeforeDiscount * khuyenMai; // Sửa ở đây
+        totalLabel.setText(String.format("Tổng tiền: %.2f VNĐ", totalAfterDiscount));
     }
 
     private void updateServices() {
@@ -548,6 +625,14 @@ public class ManageComputer extends JPanel {
                     JOptionPane.showMessageDialog(dialog, "Giá thuê phải lớn hơn hoặc bằng 0!");
                     return;
                 }
+
+                ResultSet rs = dbManager.select("BAN_MAY", new String[] { "MaMay" }, "MaMay=?", new Object[] { maMay });
+                if (rs.next()) {
+                    JOptionPane.showMessageDialog(dialog, "Đã tồn tại máy với mã này!");
+                    rs.close();
+                    return;
+                }
+                rs.close();
 
                 dbManager.insert("BAN_MAY", new Object[] { maMay, soMay, giaThueValue, trangThai });
                 if (trangThai.equals("Đang sử dụng")) {
@@ -847,7 +932,7 @@ public class ManageComputer extends JPanel {
         }
     }
 
-    private void processPayment() {
+    private void processPayment(JComboBox<String> promotionComboBox) {
         if (selectedComputerId == null) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn một máy để thanh toán!");
             return;
@@ -865,38 +950,32 @@ public class ManageComputer extends JPanel {
             int serviceFee = computerServiceFees.getOrDefault(selectedComputerId, 0);
             double totalBeforeDiscount = fee + serviceFee;
 
-            double khuyenMai = 0.0;
-            String maHD = computerInvoiceMap.get(selectedComputerId);
-            if (maHD != null) {
-                try {
-                    ResultSet rs = dbManager.select("HOA_DON",
-                            new String[] { "KhuyenMai" },
-                            "MaHD=?", new Object[] { maHD });
-                    if (rs.next()) {
-                        khuyenMai = rs.getDouble("KhuyenMai");
-                    }
-                    rs.close();
-                } catch (SQLException e) {
-                    JOptionPane.showMessageDialog(this, "Lỗi lấy thông tin khuyến mãi: " + e.getMessage());
-                    return;
+            double khuyenMai = 1.0; // Mặc định không giảm giá
+            String selectedPromotion = (String) promotionComboBox.getSelectedItem();
+            if (selectedPromotion != null && !selectedPromotion.equals("Không áp dụng")) {
+                String maKM = selectedPromotion.split(" - ")[0];
+                ResultSet rs = dbManager.select("KHUYEN_MAI", new String[] { "MucKM" }, "MaKM = ?",
+                        new Object[] { maKM });
+                if (rs.next()) {
+                    khuyenMai = rs.getDouble("MucKM"); // Hệ số khuyến mãi (ví dụ: 0.7)
                 }
+                rs.close();
             }
 
-            double totalAmount = totalBeforeDiscount * (1 - khuyenMai);
+            double totalAmount = totalBeforeDiscount * khuyenMai; // Sửa ở đây
 
+            String maHD = computerInvoiceMap.get(selectedComputerId);
             if (maHD != null) {
                 dbManager.update("HOA_DON",
-                        new String[] { "SoTien" },
-                        new Object[] { totalAmount },
-                        "MaHD=?",
-                        new Object[] { maHD });
+                        new String[] { "KhuyenMai", "SoTien" },
+                        new Object[] { khuyenMai, totalAmount },
+                        "MaHD=?", new Object[] { maHD });
             }
 
             dbManager.update("BAN_MAY",
                     new String[] { "TrangThai" },
                     new Object[] { "Sẵn sàng" },
-                    "MaMay=?",
-                    new Object[] { selectedComputerId });
+                    "MaMay=?", new Object[] { selectedComputerId });
 
             lastTimeInfo.put(selectedComputerId, timeLabel.getText());
             lastFeeInfo.put(selectedComputerId, feeLabel.getText());
@@ -912,6 +991,7 @@ public class ManageComputer extends JPanel {
 
             loadComputers((JPanel) ((JScrollPane) leftPanel.getComponent(1)).getViewport().getView());
             updateComputerInfo();
+            promotionComboBox.setSelectedIndex(0);
 
             ComputerStatusManager.getInstance().notifyComputerStatusChanged(String.valueOf(selectedComputerId),
                     "Sẵn sàng");
@@ -965,7 +1045,7 @@ public class ManageComputer extends JPanel {
             contentStream.endText();
 
             float y = 720;
-            double khuyenMai = 0.0;
+            double khuyenMai = 1.0; // Mặc định không giảm giá
             ResultSet rs = dbManager.select(
                     "HOA_DON hd JOIN KHACH_HANG kh ON hd.MaKH = kh.MaKH JOIN BAN_MAY bm ON hd.MaMay = bm.MaMay",
                     new String[] { "hd.MaHD", "kh.TenKH", "hd.Ngay", "bm.SoMay", "hd.HinhThucThanhToan",
@@ -1033,8 +1113,8 @@ public class ManageComputer extends JPanel {
             serviceRs.close();
 
             double totalBeforeDiscount = fee + totalServiceFee;
-            int discountPercentage = (int) (khuyenMai * 100);
-            double totalAmount = totalBeforeDiscount * (1 - khuyenMai);
+            int discountPercentage = (int) ((1 - khuyenMai) * 100); // Hiển thị % giảm giá
+            double totalAmount = totalBeforeDiscount * khuyenMai; // Sửa ở đây
 
             contentStream.beginText();
             contentStream.setFont(font, 12);

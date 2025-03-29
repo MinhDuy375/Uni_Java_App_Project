@@ -45,6 +45,8 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setDividerLocation(600);
+        splitPane.setResizeWeight(0.6);
+        splitPane.setEnabled(false);
 
         JPanel leftPanel = createLeftPanel();
         splitPane.setLeftComponent(leftPanel);
@@ -89,11 +91,18 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
         sortComboBox = new JComboBox<>(new String[] { "Mặc định", "A-Z", "Z-A" });
         sortComboBox.addActionListener(e -> sortMenuItems());
 
+        JButton refreshButton = new JButton("Làm mới");
+        styleButton(refreshButton);
+        refreshButton.addActionListener(e -> {
+            loadMenuItems();
+        });
+
         topRow.add(searchLabel);
         topRow.add(searchField);
         topRow.add(searchButton);
         topRow.add(new JLabel("Sắp xếp:"));
         topRow.add(sortComboBox);
+        topRow.add(refreshButton);
 
         JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         bottomRow.setBackground(Color.WHITE);
@@ -157,6 +166,7 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
         orderedItemsModel = new DefaultListModel<>();
         orderedItemsList = new JList<>(orderedItemsModel);
         orderedItemsList.setCellRenderer(new OrderedItemRenderer());
+        orderedItemsList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         JScrollPane itemsScrollPane = new JScrollPane(orderedItemsList);
         itemsScrollPane.setBorder(BorderFactory.createTitledBorder("Món đã chọn"));
         panel.add(itemsScrollPane, BorderLayout.CENTER);
@@ -167,15 +177,29 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
         styleButton(placeOrderButton);
         placeOrderButton.addActionListener(e -> placeOrder());
 
+        JButton removeSelectedButton = new JButton("Xóa");
+        styleButton(removeSelectedButton);
+        removeSelectedButton.addActionListener(e -> {
+            int[] selectedIndices = orderedItemsList.getSelectedIndices();
+            if (selectedIndices.length == 0) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn ít nhất một món để xóa!", "Cảnh báo",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            for (int i = selectedIndices.length - 1; i >= 0; i--) {
+                removeItem(selectedIndices[i]);
+            }
+            updateOrderedItemsList();
+        });
+
         JButton clearAllButton = new JButton("Xóa tất cả");
         styleButton(clearAllButton);
         clearAllButton.addActionListener(e -> {
             clearAllItems();
-            menuItems.clear();
-            displayMenuItems();
         });
 
         buttonPanel.add(placeOrderButton);
+        buttonPanel.add(removeSelectedButton);
         buttonPanel.add(clearAllButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
@@ -270,7 +294,7 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
                 itemPanel.setBackground(Color.WHITE);
                 itemPanel.setPreferredSize(new Dimension(200, 120));
                 itemPanel.setMinimumSize(new Dimension(150, 120));
-                itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+                itemPanel.setMaximumSize(new Dimension(200, 120));
 
                 JLabel nameLabel = new JLabel(item.name, SwingConstants.CENTER);
                 nameLabel.setFont(new Font("IBM Plex Mono", Font.BOLD, 16));
@@ -508,30 +532,17 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
 
     private class OrderedItemRenderer extends JPanel implements ListCellRenderer<String> {
         private JLabel label;
-        private JButton removeButton;
 
         public OrderedItemRenderer() {
             setLayout(new BorderLayout(5, 0));
             label = new JLabel();
-            removeButton = new JButton("Xóa");
-            removeButton.setBackground(new Color(255, 99, 71));
-            removeButton.setForeground(Color.WHITE);
-            removeButton.setFont(new Font("IBM Plex Mono", Font.BOLD, 12));
-            removeButton.setBorderPainted(false);
-            removeButton.setFocusPainted(false);
-            removeButton.setPreferredSize(new Dimension(60, 30));
             add(label, BorderLayout.CENTER);
-            add(removeButton, BorderLayout.EAST);
         }
 
         @Override
         public Component getListCellRendererComponent(JList<? extends String> list, String value, int index,
                 boolean isSelected, boolean cellHasFocus) {
             label.setText(value);
-            for (ActionListener al : removeButton.getActionListeners()) {
-                removeButton.removeActionListener(al);
-            }
-            removeButton.addActionListener(e -> removeItem(index));
             if (isSelected) {
                 setBackground(list.getSelectionBackground());
                 setForeground(list.getSelectionForeground());
