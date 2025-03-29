@@ -519,9 +519,9 @@ public class ManageComputer extends JPanel {
 
         styleButton(saveButton);
 
-        dialog.add(new JLabel("Mã máy:"));
+        dialog.add(new JLabel("Máy số:"));
         dialog.add(maMayField);
-        dialog.add(new JLabel("Số máy:"));
+        dialog.add(new JLabel("Tên máy(Tên hiển thị):"));
         dialog.add(soMayField);
         dialog.add(new JLabel("Giá thuê (VNĐ/giờ):"));
         dialog.add(giaThueField);
@@ -670,7 +670,7 @@ public class ManageComputer extends JPanel {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame owner = (window instanceof Frame) ? (Frame) window : null;
 
-        JDialog dialog = new JDialog(owner, "Chuyển máy", true);
+        JDialog dialog = new JDialog(owner, "Chuyển dữ liệu máy", true);
         dialog.setLayout(new GridLayout(3, 2, 10, 10));
         dialog.setSize(300, 150);
         dialog.setLocationRelativeTo(this);
