@@ -26,8 +26,11 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class StatisticsPanel extends JPanel {
     private DatabaseManager dbManager;
@@ -59,7 +62,8 @@ public class StatisticsPanel extends JPanel {
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         searchPanel.setBackground(Color.WHITE);
 
-        String[] columnNames = { "Mã", "Doanh thu (VNĐ)", "Số lượng khách" }; // Bỏ cột "Ngày"
+        // Cập nhật cột: Ngày, Doanh thu, Số lượng hóa đơn
+        String[] columnNames = { "Ngày", "Doanh thu (VNĐ)", "Số lượng hóa đơn" };
         filterComboBox = new JComboBox<>(columnNames);
         filterComboBox.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
 
@@ -94,12 +98,12 @@ public class StatisticsPanel extends JPanel {
         statsTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                    boolean hasFocus, int row, int column) {
+                                                           boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(239, 241, 249));
                 }
-                if (column == 0 || column == 1 || column == 2) { // Điều chỉnh chỉ số cột
+                if (column == 0 || column == 1 || column == 2) {
                     ((DefaultTableCellRenderer) c).setHorizontalAlignment(SwingConstants.CENTER);
                 }
                 return c;
@@ -177,7 +181,7 @@ public class StatisticsPanel extends JPanel {
     private JFreeChart createChart(DefaultCategoryDataset dataset) {
         JFreeChart chart = ChartFactory.createBarChart(
                 "",
-                "Mã hóa đơn",
+                "Ngày", // Cập nhật nhãn trục X thành "Ngày"
                 "Doanh thu (triệu VNĐ)",
                 dataset,
                 PlotOrientation.VERTICAL,
@@ -213,26 +217,52 @@ public class StatisticsPanel extends JPanel {
     private void loadStatistics() {
         double totalRevenue = 0;
         int totalOrders = 0;
-        Map<String, Double> invoiceRevenue = new HashMap<>();
+        Map<String, Double> dateRevenue = new TreeMap<>(); // Sử dụng TreeMap để sắp xếp theo ngày
+        Map<String, Integer> dateOrderCount = new HashMap<>(); // Đếm số hóa đơn theo ngày
         tableModel.setRowCount(0);
         dataset.clear();
 
         try {
-            ResultSet rs = dbManager.select("HOA_DON", new String[] { "MaHD", "SoTien" }, ""); // Bỏ cột NgayLap
+            ResultSet rs = dbManager.select("HOA_DON", new String[] { "MaHD", "SoTien", "Ngay" }, "");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
             while (rs.next()) {
                 String maHD = rs.getString("MaHD");
-                int soTien = rs.getInt("SoTien");
+                double soTien = rs.getDouble("SoTien");
+                String ngayStr = rs.getString("Ngay"); // Lấy giá trị Ngay dưới dạng chuỗi
+
+                // Parse chuỗi ngày thành Date
+                Date ngay;
+                try {
+                    ngay = sdf.parse(ngayStr);
+                } catch (java.text.ParseException e) {
+                    System.err.println("Lỗi parse ngày: " + ngayStr + " - " + e.getMessage());
+                    continue; // Bỏ qua bản ghi này nếu ngày không hợp lệ
+                }
+
+                String dateStr = sdf.format(ngay);
 
                 totalRevenue += soTien;
                 totalOrders++;
 
-                double revenueInMillion = soTien / 1_000_000.0;
-                invoiceRevenue.put(maHD, revenueInMillion);
+                // Cộng dồn doanh thu theo ngày
+                dateRevenue.put(dateStr, dateRevenue.getOrDefault(dateStr, 0.0) + soTien);
 
-                tableModel.addRow(new Object[] { maHD, soTien, 1 }); // Bỏ cột NgayLap
-                dataset.addValue(revenueInMillion, "Doanh thu", maHD);
+                // Đếm số hóa đơn theo ngày
+                dateOrderCount.put(dateStr, dateOrderCount.getOrDefault(dateStr, 0) + 1);
             }
             rs.close();
+
+            // Thêm dữ liệu vào bảng và biểu đồ
+            for (Map.Entry<String, Double> entry : dateRevenue.entrySet()) {
+                String dateStr = entry.getKey();
+                double revenue = entry.getValue();
+                int orderCount = dateOrderCount.getOrDefault(dateStr, 0);
+
+                double revenueInMillion = revenue / 1_000_000.0;
+                tableModel.addRow(new Object[] { dateStr, (long) revenue, orderCount });
+                dataset.addValue(revenueInMillion, "Doanh thu", dateStr);
+            }
 
             DecimalFormat df = new DecimalFormat("#,### VNĐ");
             totalRevenueLabel.setText("Tổng doanh thu: " + df.format(totalRevenue));
@@ -240,8 +270,7 @@ public class StatisticsPanel extends JPanel {
 
             CategoryPlot plot = chartPanel.getChart().getCategoryPlot();
             NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
-            double maxRevenue = invoiceRevenue.values().stream().mapToDouble(Double::doubleValue).max().orElse(0.1)
-                    * 1.2;
+            double maxRevenue = dateRevenue.values().stream().mapToDouble(Double::doubleValue).max().orElse(0.1) / 1_000_000.0 * 1.2;
             rangeAxis.setUpperBound(maxRevenue > 0 ? maxRevenue : 0.1);
 
         } catch (SQLException e) {
@@ -289,7 +318,7 @@ public class StatisticsPanel extends JPanel {
             contentStream.beginText();
             contentStream.setFont(font, 10);
             contentStream.newLineAtOffset(50, 320);
-            contentStream.showText("Danh sách hóa đơn:");
+            contentStream.showText("Danh sách doanh thu theo ngày:");
             contentStream.endText();
 
             float y = 300;
