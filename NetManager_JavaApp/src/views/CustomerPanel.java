@@ -3,8 +3,8 @@ package views;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -13,6 +13,7 @@ public class CustomerPanel extends JPanel {
     private JTable customerTable;
     private DefaultTableModel tableModel;
     private SearchPanel searchPanel;
+    private TableRowSorter<DefaultTableModel> sorter;
 
     public CustomerPanel() {
         dbManager = new DatabaseManager();
@@ -28,6 +29,9 @@ public class CustomerPanel extends JPanel {
         String[] columns = { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Điểm tích lũy" };
         tableModel = new DefaultTableModel(columns, 0);
         customerTable = new JTable(tableModel);
+        sorter = new TableRowSorter<>(tableModel);
+        customerTable.setRowSorter(sorter);
+
         customerTable.setRowHeight(30);
         customerTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
         customerTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
@@ -56,7 +60,24 @@ public class CustomerPanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
 
         String[] filterOptions = { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email" };
-        searchPanel = new SearchPanel(filterOptions, this::filterTable);
+        searchPanel = new SearchPanel(filterOptions, e -> {
+            try {
+                String[] data = e.getActionCommand().split(";");
+                if (data.length != 2) {
+                    JOptionPane.showMessageDialog(this, "Dữ liệu tìm kiếm không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                String keyword = data[0].trim();
+                int columnIndex = Integer.parseInt(data[1]);
+                if (keyword.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Vui lòng nhập từ khóa tìm kiếm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                filterTable(keyword, columnIndex);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi định dạng cột tìm kiếm! Vui lòng thử lại.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
         add(searchPanel, BorderLayout.NORTH);
 
         JPanel buttonPanel = new JPanel();
@@ -105,41 +126,8 @@ public class CustomerPanel extends JPanel {
         }
     }
 
-    private void filterTable(ActionEvent e) {
-        String keyword = searchPanel.getSearchField().getText().trim().toLowerCase();
-        String selectedFilter = searchPanel.getFilterComboBox().getSelectedItem().toString();
-        DefaultTableModel filteredModel = new DefaultTableModel(
-                new String[] { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Điểm tích lũy" }, 0);
-
-        for (int i = 0; i < tableModel.getRowCount(); i++) {
-            String value;
-            switch (selectedFilter) {
-                case "Mã khách hàng":
-                    value = tableModel.getValueAt(i, 0).toString().toLowerCase();
-                    break;
-                case "Tên khách hàng":
-                    value = tableModel.getValueAt(i, 1).toString().toLowerCase();
-                    break;
-                case "Số điện thoại":
-                    value = tableModel.getValueAt(i, 2).toString().toLowerCase();
-                    break;
-                case "Email":
-                    value = tableModel.getValueAt(i, 3).toString().toLowerCase();
-                    break;
-                default:
-                    value = "";
-            }
-            if (value.contains(keyword)) {
-                filteredModel.addRow(new Object[] {
-                        tableModel.getValueAt(i, 0),
-                        tableModel.getValueAt(i, 1),
-                        tableModel.getValueAt(i, 2),
-                        tableModel.getValueAt(i, 3),
-                        tableModel.getValueAt(i, 4)
-                });
-            }
-        }
-        customerTable.setModel(filteredModel);
+    private void filterTable(String keyword, int columnIndex) {
+        sorter.setRowFilter(RowFilter.regexFilter("(?i)" + keyword, columnIndex));
     }
 
     private void addCustomer() {

@@ -77,6 +77,14 @@ public class DatabaseManager {
                         "GiaThueBan NUMERIC NOT NULL CHECK (GiaThueBan >= 0), " +
                         "TrangThai VARCHAR(20) NOT NULL CHECK (TrangThai IN ('Sẵn sàng', 'Đang sử dụng', 'Bảo trì')))");
 
+                // Bảng KHACH_HANG
+                stmt.execute("CREATE TABLE IF NOT EXISTS KHACH_HANG (" +
+                        "MaKH VARCHAR(10) PRIMARY KEY, " +
+                        "TenKH VARCHAR(50) NOT NULL, " +
+                        "SDT VARCHAR(15) CHECK (SDT GLOB '[0-9]*'), " +
+                        "Email VARCHAR(50), " +
+                        "DiemTichLuy INTEGER CHECK (DiemTichLuy >= 0))");
+
                 // Bảng HOA_DON (thêm khóa ngoại)
                 stmt.execute("CREATE TABLE IF NOT EXISTS HOA_DON (" +
                         "MaHD VARCHAR(10) PRIMARY KEY, " +
@@ -86,8 +94,7 @@ public class DatabaseManager {
                         "Ngay DATE NOT NULL, " +
                         "KhuyenMai NUMERIC DEFAULT 0 CHECK (KhuyenMai >= 0 AND KhuyenMai <= 1), " +
                         "SoTien NUMERIC NOT NULL CHECK (SoTien >= 0), " +
-                        "HinhThucThanhToan VARCHAR(20) NOT NULL CHECK (HinhThucThanhToan IN ('Tiền mặt', 'Chuyển khoản')), "
-                        +
+                        "HinhThucThanhToan VARCHAR(20) NOT NULL CHECK (HinhThucThanhToan IN ('Tiền mặt', 'Chuyển khoản')), " +
                         "FOREIGN KEY (MaKH) REFERENCES KHACH_HANG(MaKH) ON DELETE RESTRICT, " +
                         "FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV) ON DELETE RESTRICT, " +
                         "FOREIGN KEY (MaMay) REFERENCES BAN_MAY(MaMay) ON DELETE RESTRICT)");
@@ -114,6 +121,12 @@ public class DatabaseManager {
                 rs = stmt.executeQuery("SELECT COUNT(*) FROM NHAN_VIEN");
                 if (rs.next()) {
                     System.out.println("Số dòng trong bảng NHAN_VIEN: " + rs.getInt(1));
+                }
+                rs.close();
+
+                rs = stmt.executeQuery("SELECT COUNT(*) FROM KHACH_HANG");
+                if (rs.next()) {
+                    System.out.println("Số dòng trong bảng KHACH_HANG: " + rs.getInt(1));
                 }
                 rs.close();
 
@@ -217,7 +230,7 @@ public class DatabaseManager {
     }
 
     public synchronized void update(String table, String[] columns, Object[] values, String whereClause,
-            Object[] whereParams)
+                                    Object[] whereParams)
             throws SQLException {
         String setClause = String.join("=?, ", columns) + "=?";
         String sql = "UPDATE " + table + " SET " + setClause + " WHERE " + whereClause;

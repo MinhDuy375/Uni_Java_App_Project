@@ -3,6 +3,7 @@ package views;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,6 +13,7 @@ public class StaffPanel extends JPanel {
     private JTable staffTable;
     private DefaultTableModel tableModel;
     private SearchPanel searchPanel;
+    private TableRowSorter<DefaultTableModel> sorter;
 
     public StaffPanel() {
         dbManager = new DatabaseManager();
@@ -24,9 +26,12 @@ public class StaffPanel extends JPanel {
         title.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         add(title, BorderLayout.NORTH);
 
-        String[] columns = { "Mã NV", "Họ và Tên", "Chức vụ", "Số điện thoại" };
+        String[] columns = { "Mã NV", "TênNV", "Chức vụ", "Ca làm", "Số điện thoại" };
         tableModel = new DefaultTableModel(columns, 0);
         staffTable = new JTable(tableModel);
+        sorter = new TableRowSorter<>(tableModel);
+        staffTable.setRowSorter(sorter);
+
         staffTable.setRowHeight(30);
         staffTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
         staffTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
@@ -54,12 +59,25 @@ public class StaffPanel extends JPanel {
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(scrollPane, BorderLayout.CENTER);
 
-        String[] filterOptions = { "Mã NV", "Họ và Tên" };
+        String[] filterOptions = { "Mã NV", "TênNV", "Chức vụ", "Ca làm", "Số điện thoại" };
         searchPanel = new SearchPanel(filterOptions, e -> {
-            String[] data = e.getActionCommand().split(";");
-            String keyword = data[0];
-            int columnIndex = Integer.parseInt(data[1]);
-            filterTable(keyword, columnIndex);
+            try {
+                String[] data = e.getActionCommand().split(";");
+                if (data.length != 2) {
+                    JOptionPane.showMessageDialog(this, "Dữ liệu tìm kiếm không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                String keyword = data[0].trim();
+                int columnIndex = Integer.parseInt(data[1]);
+                // Kiểm tra keyword đã được xử lý ở SearchPanel, nhưng giữ lại để đảm bảo
+                if (keyword.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Vui lòng nhập từ khóa tìm kiếm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                filterTable(keyword, columnIndex);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi định dạng cột tìm kiếm! Vui lòng thử lại.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
         });
         add(searchPanel, BorderLayout.NORTH);
 
@@ -69,19 +87,26 @@ public class StaffPanel extends JPanel {
         JButton addButton = new JButton("Thêm");
         JButton editButton = new JButton("Sửa");
         JButton deleteButton = new JButton("Xóa");
+        JButton refreshButton = new JButton("Làm mới");
 
         styleButton(addButton);
         styleButton(editButton);
         styleButton(deleteButton);
+        styleButton(refreshButton);
 
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
+        buttonPanel.add(refreshButton);
         add(buttonPanel, BorderLayout.SOUTH);
 
         addButton.addActionListener(e -> addStaff());
         editButton.addActionListener(e -> editStaff());
         deleteButton.addActionListener(e -> deleteStaff());
+        refreshButton.addActionListener(e -> {
+            sorter.setRowFilter(null);
+            loadData();
+        });
 
         loadData();
     }
@@ -89,15 +114,17 @@ public class StaffPanel extends JPanel {
     private void loadData() {
         tableModel.setRowCount(0);
         try {
-            ResultSet rs = dbManager.select("NHAN_VIEN", new String[] { "MaNV", "TenNV", "ChucVu", "SDT" }, "");
+            ResultSet rs = dbManager.select("NHAN_VIEN", new String[] { "MaNV", "TenNV", "SDT", "ChucVu", "CaLam" }, "");
             while (rs.next()) {
                 String sdt = rs.getString("SDT");
-                if (sdt == null || sdt.isEmpty())
-                    sdt = "Chưa có";
+                String caLam = rs.getString("CaLam");
+                if (sdt == null || sdt.isEmpty()) sdt = "Chưa có";
+                if (caLam == null || caLam.isEmpty()) caLam = "Không có ca";
                 tableModel.addRow(new Object[] {
                         rs.getString("MaNV"),
                         rs.getString("TenNV"),
                         rs.getString("ChucVu"),
+                        caLam,
                         sdt
                 });
             }
@@ -108,51 +135,90 @@ public class StaffPanel extends JPanel {
     }
 
     private void filterTable(String keyword, int columnIndex) {
-        DefaultTableModel filteredModel = new DefaultTableModel(
-                new String[] { "Mã NV", "Họ và Tên", "Chức vụ", "Số điện thoại" }, 0);
-
-        for (int i = 0; i < tableModel.getRowCount(); i++) {
-            String cellValue = tableModel.getValueAt(i, columnIndex).toString().toLowerCase();
-            if (cellValue.contains(keyword.toLowerCase())) {
-                filteredModel.addRow(new Object[] {
-                        tableModel.getValueAt(i, 0),
-                        tableModel.getValueAt(i, 1),
-                        tableModel.getValueAt(i, 2),
-                        tableModel.getValueAt(i, 3)
-                });
-            }
-        }
-        staffTable.setModel(filteredModel);
+        sorter.setRowFilter(RowFilter.regexFilter("(?i)" + keyword, columnIndex));
     }
 
     private void addStaff() {
         JTextField maNvField = new JTextField(10);
         JTextField tenNvField = new JTextField(10);
-        JTextField chucVuField = new JTextField(10);
+        JComboBox<String> chucVuComboBox = new JComboBox<>(new String[]{"user", "admin"});
+        JComboBox<String> caLamComboBox = new JComboBox<>(new String[]{"Không có ca", "Ca1", "Ca2", "Ca3"});
         JTextField sdtField = new JTextField(10);
 
-        JPanel panel = new JPanel(new GridLayout(4, 2));
+        JPanel panel = new JPanel(new GridLayout(5, 2));
         panel.add(new JLabel("Mã nhân viên:"));
         panel.add(maNvField);
-        panel.add(new JLabel("Họ và Tên:"));
+        panel.add(new JLabel("TênNV:"));
         panel.add(tenNvField);
         panel.add(new JLabel("Chức vụ:"));
-        panel.add(chucVuField);
+        panel.add(chucVuComboBox);
+        panel.add(new JLabel("Ca làm:"));
+        panel.add(caLamComboBox);
         panel.add(new JLabel("Số điện thoại:"));
         panel.add(sdtField);
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Thêm nhân viên", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
-            try {
-                String maNv = maNvField.getText();
-                String tenNv = tenNvField.getText();
-                String chucVu = chucVuField.getText();
-                String sdt = sdtField.getText();
-                dbManager.insert("NHAN_VIEN", new Object[] { maNv, tenNv, chucVu, null, 1, sdt });
-                loadData();
-            } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, "Lỗi thêm nhân viên: " + e.getMessage(), "Lỗi",
+            String maNv = maNvField.getText().trim();
+            String tenNv = tenNvField.getText().trim();
+            String chucVu = chucVuComboBox.getSelectedItem().toString();
+            String caLam = caLamComboBox.getSelectedItem().toString();
+            String sdt = sdtField.getText().trim();
+
+            // Kiểm tra các trường bắt buộc
+            if (maNv.isEmpty() || tenNv.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin (Mã NV, TênNV)!", "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Kiểm tra MaNV là số và nằm trong khoảng hợp lệ của INTEGER
+            Integer maNvValue;
+            try {
+                maNvValue = Integer.parseInt(maNv);
+                if (maNvValue < Integer.MIN_VALUE || maNvValue > Integer.MAX_VALUE) {
+                    JOptionPane.showMessageDialog(this, "Mã nhân viên phải nằm trong khoảng từ " + Integer.MIN_VALUE + " đến " + Integer.MAX_VALUE + "!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Mã nhân viên phải là số!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Kiểm tra độ dài của TenNV
+            if (tenNv.length() > 50) {
+                JOptionPane.showMessageDialog(this, "Tên nhân viên không được dài quá 50 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Kiểm tra SDT chỉ chứa số (nếu không rỗng) và độ dài
+            if (!sdt.isEmpty()) {
+                if (!sdt.matches("\\d+")) {
+                    JOptionPane.showMessageDialog(this, "Số điện thoại chỉ được chứa ký tự số!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (sdt.length() > 10) {
+                    JOptionPane.showMessageDialog(this, "Số điện thoại không được dài quá 10 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
+            // Nếu chọn "Không có ca", truyền null cho CaLam
+            Object caLamValue = caLam.equals("Không có ca") ? null : caLam;
+
+            try {
+                // Thứ tự: MaNV, TenNV, SDT, ChucVu, CaLam, TinhTrang
+                dbManager.insert("NHAN_VIEN", new Object[] { maNvValue, tenNv, sdt.isEmpty() ? null : sdt, chucVu, caLamValue, true });
+                loadData();
+                JOptionPane.showMessageDialog(this, "Thêm nhân viên thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+            } catch (SQLException e) {
+                String errorMsg = e.getMessage();
+                if (errorMsg.contains("unique constraint") || errorMsg.contains("duplicate key")) {
+                    errorMsg = "Mã nhân viên đã tồn tại!";
+                } else {
+                    errorMsg = "Lỗi khi thêm nhân viên: " + e.getMessage();
+                }
+                JOptionPane.showMessageDialog(this, errorMsg, "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -166,29 +232,65 @@ public class StaffPanel extends JPanel {
 
         String maNv = tableModel.getValueAt(selectedRow, 0).toString();
         JTextField tenNvField = new JTextField(tableModel.getValueAt(selectedRow, 1).toString(), 10);
-        JTextField chucVuField = new JTextField(tableModel.getValueAt(selectedRow, 2).toString(), 10);
-        JTextField sdtField = new JTextField(tableModel.getValueAt(selectedRow, 3).toString(), 10);
+        JComboBox<String> chucVuComboBox = new JComboBox<>(new String[]{"user", "admin"});
+        chucVuComboBox.setSelectedItem(tableModel.getValueAt(selectedRow, 2).toString());
+        JComboBox<String> caLamComboBox = new JComboBox<>(new String[]{"Không có ca", "Ca1", "Ca2", "Ca3"});
+        String currentCaLam = tableModel.getValueAt(selectedRow, 3).toString();
+        caLamComboBox.setSelectedItem(currentCaLam.equals("Không có ca") ? "Không có ca" : currentCaLam);
+        JTextField sdtField = new JTextField(tableModel.getValueAt(selectedRow, 4).toString(), 10);
 
-        JPanel panel = new JPanel(new GridLayout(3, 2));
-        panel.add(new JLabel("Họ và Tên:"));
+        JPanel panel = new JPanel(new GridLayout(4, 2));
+        panel.add(new JLabel("TênNV:"));
         panel.add(tenNvField);
         panel.add(new JLabel("Chức vụ:"));
-        panel.add(chucVuField);
+        panel.add(chucVuComboBox);
+        panel.add(new JLabel("Ca làm:"));
+        panel.add(caLamComboBox);
         panel.add(new JLabel("Số điện thoại:"));
         panel.add(sdtField);
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Sửa nhân viên", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
+            String tenNv = tenNvField.getText().trim();
+            String chucVu = chucVuComboBox.getSelectedItem().toString();
+            String caLam = caLamComboBox.getSelectedItem().toString();
+            String sdt = sdtField.getText().trim();
+
+            // Kiểm tra TênNV không rỗng
+            if (tenNv.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "TênNV không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Kiểm tra độ dài của TenNV
+            if (tenNv.length() > 50) {
+                JOptionPane.showMessageDialog(this, "Tên nhân viên không được dài quá 50 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Kiểm tra SDT chỉ chứa số (nếu không rỗng) và độ dài
+            if (!sdt.isEmpty()) {
+                if (!sdt.matches("\\d+")) {
+                    JOptionPane.showMessageDialog(this, "Số điện thoại chỉ được chứa ký tự số!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (sdt.length() > 10) {
+                    JOptionPane.showMessageDialog(this, "Số điện thoại không được dài quá 10 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
+            // Nếu chọn "Không có ca", truyền null cho CaLam
+            Object caLamValue = caLam.equals("Không có ca") ? null : caLam;
+
             try {
-                String tenNv = tenNvField.getText();
-                String chucVu = chucVuField.getText();
-                String sdt = sdtField.getText();
-                dbManager.update("NHAN_VIEN", new String[] { "TenNV", "ChucVu", "SDT" },
-                        new Object[] { tenNv, chucVu, sdt }, "MaNV = ?", new Object[] { maNv });
+                // Thứ tự: TenNV, SDT, ChucVu, CaLam
+                dbManager.update("NHAN_VIEN", new String[] { "TenNV", "SDT", "ChucVu", "CaLam" },
+                        new Object[] { tenNv, sdt.isEmpty() ? null : sdt, chucVu, caLamValue }, "MaNV = ?", new Object[] { maNv });
                 loadData();
+                JOptionPane.showMessageDialog(this, "Sửa nhân viên thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
             } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, "Lỗi sửa nhân viên: " + e.getMessage(), "Lỗi",
-                        JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Lỗi sửa nhân viên: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -208,8 +310,7 @@ public class StaffPanel extends JPanel {
                 ResultSet rs = dbManager.select("HOA_DON", new String[] { "MaHD" }, "MaNV = ?", new Object[] { maNv });
                 if (rs.next()) {
                     JOptionPane.showMessageDialog(this, "Không thể xóa nhân viên này vì đã có hóa đơn liên quan!",
-                            "Lỗi",
-                            JOptionPane.ERROR_MESSAGE);
+                            "Lỗi", JOptionPane.ERROR_MESSAGE);
                     rs.close();
                     return;
                 }
@@ -217,9 +318,9 @@ public class StaffPanel extends JPanel {
 
                 dbManager.delete("NHAN_VIEN", "MaNV = ?", new Object[] { maNv });
                 loadData();
+                JOptionPane.showMessageDialog(this, "Xóa nhân viên thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
             } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, "Lỗi xóa nhân viên: " + e.getMessage(), "Lỗi",
-                        JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Lỗi xóa nhân viên: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
