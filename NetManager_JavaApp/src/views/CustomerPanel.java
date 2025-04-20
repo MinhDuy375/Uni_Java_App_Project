@@ -1,6 +1,7 @@
 package views;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -24,16 +25,36 @@ public class CustomerPanel extends JPanel {
         title.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         add(title, BorderLayout.NORTH);
 
-        // Cập nhật các cột để phù hợp với bảng KHACH_HANG
         String[] columns = { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Điểm tích lũy" };
         tableModel = new DefaultTableModel(columns, 0);
         customerTable = new JTable(tableModel);
         customerTable.setRowHeight(30);
         customerTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
+        customerTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
+        customerTable.getTableHeader().setBackground(new Color(97, 187, 252));
+        customerTable.getTableHeader().setForeground(Color.WHITE);
+
+        customerTable.setShowGrid(false);
+        customerTable.setIntercellSpacing(new Dimension(0, 0));
+        customerTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (!isSelected) {
+                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(239, 241, 249));
+                }
+                if (column == 0 || column == 4) { // Căn giữa cột "Mã khách hàng" và "Điểm tích lũy"
+                    ((DefaultTableCellRenderer) c).setHorizontalAlignment(SwingConstants.CENTER);
+                }
+                return c;
+            }
+        });
+
         JScrollPane scrollPane = new JScrollPane(customerTable);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(scrollPane, BorderLayout.CENTER);
 
-        // Cập nhật tùy chọn tìm kiếm
         String[] filterOptions = { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email" };
         searchPanel = new SearchPanel(filterOptions, this::filterTable);
         add(searchPanel, BorderLayout.NORTH);
@@ -44,6 +65,11 @@ public class CustomerPanel extends JPanel {
         JButton editButton = new JButton("Sửa");
         JButton deleteButton = new JButton("Xóa");
         JButton rechargeButton = new JButton("Cập nhật điểm tích lũy");
+
+        styleButton(addButton);
+        styleButton(editButton);
+        styleButton(deleteButton);
+        styleButton(rechargeButton);
 
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
@@ -236,7 +262,6 @@ public class CustomerPanel extends JPanel {
 
         String maKH = tableModel.getValueAt(selectedRow, 0).toString();
         try {
-            // Kiểm tra xem khách hàng có hóa đơn liên quan không
             ResultSet rs = dbManager.select("HOA_DON", new String[] { "MaHD" }, "MaKH = ?", new Object[] { maKH });
             if (rs.next()) {
                 JOptionPane.showMessageDialog(this, "Không thể xóa khách hàng này vì đã có hóa đơn liên quan!", "Lỗi",
@@ -293,5 +318,27 @@ public class CustomerPanel extends JPanel {
                         JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    private void styleButton(JButton button) {
+        button.setBackground(new Color(97, 187, 252));
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(100, 35));
+
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(70, 150, 200));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(97, 187, 252));
+            }
+        });
     }
 }

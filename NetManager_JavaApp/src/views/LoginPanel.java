@@ -4,6 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.IOException;
 import java.sql.*;
 
 public class LoginPanel extends JFrame {
@@ -41,7 +43,20 @@ public class LoginPanel extends JFrame {
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
 
-        JLabel lblLogo = new JLabel(new ImageIcon(getClass().getResource("/views/NétCỏ.png")));
+        // Logo dạng chữ "NétCỏ"
+        JLabel lblLogo = new JLabel("NétCỏ", SwingConstants.CENTER);
+        try {
+            File fontFile = new File("NetManager_JavaApp/resources/fonts/Pacifico-Regular.ttf");
+            if (!fontFile.exists()) {
+                throw new IOException("File font Pacifico-Regular.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
+            }
+            Font pacificoFont = Font.createFont(Font.TRUETYPE_FONT, fontFile).deriveFont(60f);
+            lblLogo.setFont(pacificoFont);
+        } catch (FontFormatException | IOException e) {
+            System.out.println("Lỗi khi nhúng font Pacifico-Regular: " + e.getMessage());
+            lblLogo.setFont(new Font("Serif", Font.BOLD, 60));
+        }
+        lblLogo.setForeground(Color.WHITE);
         lblLogo.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         panel.add(lblLogo, gbc);
 
@@ -101,7 +116,6 @@ public class LoginPanel extends JFrame {
             }
 
             if (isManager) {
-                // Kiểm tra đăng nhập cho Quản lý
                 if (checkLogin(id, matkhau, "admin")) {
                     JOptionPane.showMessageDialog(null, "Đăng nhập thành công với vai trò Quản lý!", "Thông báo",
                             JOptionPane.INFORMATION_MESSAGE);
@@ -113,7 +127,6 @@ public class LoginPanel extends JFrame {
                             JOptionPane.ERROR_MESSAGE);
                 }
             } else {
-                // Vai trò Nhân viên (chưa triển khai)
                 JOptionPane.showMessageDialog(null, "Chưa triển khai giao diện cho Nhân viên!", "Thông báo",
                         JOptionPane.INFORMATION_MESSAGE);
             }
@@ -177,7 +190,6 @@ public class LoginPanel extends JFrame {
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        button.setMargin(new Insets(550, 0, 0, 0));
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setBackground(new Color(30, 130, 230));
@@ -192,13 +204,11 @@ public class LoginPanel extends JFrame {
     }
 
     private boolean checkLogin(String id, String matkhau, String expectedChucvu) {
-        // Truy vấn kiểm tra tài khoản dựa trên id và matkhau
         String query = "SELECT * FROM TAI_KHOAN WHERE id = ? AND matkhau = ? AND chucvu = ?";
 
         try {
             ResultSet rs = dbManager.select("TAI_KHOAN", new String[] { "id", "matkhau", "chucvu" },
                     "id = '" + id + "' AND matkhau = '" + matkhau + "' AND chucvu = '" + expectedChucvu + "'");
-
             boolean loginSuccess = rs.next();
             rs.close();
             return loginSuccess;

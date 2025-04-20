@@ -1,6 +1,7 @@
 package views;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.ResultSet;
@@ -28,8 +29,29 @@ public class StaffPanel extends JPanel {
         staffTable = new JTable(tableModel);
         staffTable.setRowHeight(30);
         staffTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
+        staffTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
+        staffTable.getTableHeader().setBackground(new Color(97, 187, 252));
+        staffTable.getTableHeader().setForeground(Color.WHITE);
+
+        staffTable.setShowGrid(false);
+        staffTable.setIntercellSpacing(new Dimension(0, 0));
+        staffTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (!isSelected) {
+                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(239, 241, 249));
+                }
+                if (column == 0) { // Căn giữa cột "Mã NV"
+                    ((DefaultTableCellRenderer) c).setHorizontalAlignment(SwingConstants.CENTER);
+                }
+                return c;
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(staffTable);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(scrollPane, BorderLayout.CENTER);
 
         String[] filterOptions = { "Mã NV", "Họ và Tên" };
@@ -47,6 +69,10 @@ public class StaffPanel extends JPanel {
         JButton addButton = new JButton("Thêm");
         JButton editButton = new JButton("Sửa");
         JButton deleteButton = new JButton("Xóa");
+
+        styleButton(addButton);
+        styleButton(editButton);
+        styleButton(deleteButton);
 
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
@@ -179,7 +205,6 @@ public class StaffPanel extends JPanel {
                 JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                // Kiểm tra xem nhân viên có được sử dụng trong HOA_DON không
                 ResultSet rs = dbManager.select("HOA_DON", new String[] { "MaHD" }, "MaNV = ?", new Object[] { maNv });
                 if (rs.next()) {
                     JOptionPane.showMessageDialog(this, "Không thể xóa nhân viên này vì đã có hóa đơn liên quan!",
@@ -190,7 +215,6 @@ public class StaffPanel extends JPanel {
                 }
                 rs.close();
 
-                // Xóa nhân viên từ bảng NHAN_VIEN
                 dbManager.delete("NHAN_VIEN", "MaNV = ?", new Object[] { maNv });
                 loadData();
             } catch (SQLException e) {
@@ -198,5 +222,27 @@ public class StaffPanel extends JPanel {
                         JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    private void styleButton(JButton button) {
+        button.setBackground(new Color(97, 187, 252));
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(100, 35));
+
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(70, 150, 200));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(97, 187, 252));
+            }
+        });
     }
 }
