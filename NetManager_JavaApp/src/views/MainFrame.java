@@ -14,13 +14,25 @@ public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private List<JButton> menuButtons = new ArrayList<>();
     private JButton selectedButton = null;
+    private String userRole;
 
     private JPanel subMenuManageInfo;
     private JPanel subMenuServiceMenu;
     private boolean isSubMenuManageInfoVisible = false;
     private boolean isSubMenuServiceMenuVisible = false;
 
-    public MainFrame() {
+    private InventoryPanel inventoryPanel;
+    private ServiceMenuPanel serviceMenuPanel;
+    private ManageComputer manageComputer;
+    private PromotionsPanel promotionsPanel;
+    private StaffPanel staffPanel;
+    private StatisticsPanel statisticsPanel;
+    private CustomerPanel customerPanel;
+    private OrderPanel orderPanel;
+    private ImportInfoPanel importInfoPanel;
+
+    public MainFrame(String userRole) {
+        this.userRole = userRole;
         setTitle("Net Management");
         setSize(1266, 698);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -31,49 +43,37 @@ public class MainFrame extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.GRAY);
 
-        // Header Panel
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(Color.WHITE);
         headerPanel.setPreferredSize(new Dimension(1127, 80));
         headerPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, new Color(173, 173, 173, 200)));
 
-        // Đảm bảo netCoBlock giữ nguyên kích thước
         JPanel netCoBlock = new JPanel(new GridBagLayout());
         netCoBlock.setBackground(new Color(97, 187, 252));
         netCoBlock.setPreferredSize(new Dimension(235, 80));
-        netCoBlock.setMinimumSize(new Dimension(235, 80)); // Ngăn thu nhỏ
-        netCoBlock.setMaximumSize(new Dimension(235, 80)); // Ngăn mở rộng
+        netCoBlock.setMinimumSize(new Dimension(235, 80));
+        netCoBlock.setMaximumSize(new Dimension(235, 80));
 
-        // Logo "NétCỏ" (giữ nguyên từ mã tham khảo)
         JLabel imageLabel = new JLabel("NétCỏ", SwingConstants.CENTER);
         try {
-            // Nhúng font Pacifico-Regular.ttf
             File fontFile = new File("NetManager_JavaApp/resources/fonts/Pacifico-Regular.ttf");
             if (!fontFile.exists()) {
-                throw new IOException("File font Pacifico-Regular.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
+                throw new IOException(
+                        "File font Pacifico-Regular.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
             }
-            Font pacificoFont = Font.createFont(Font.TRUETYPE_FONT, fontFile).deriveFont(40f); // Kích thước font 40
+            Font pacificoFont = Font.createFont(Font.TRUETYPE_FONT, fontFile).deriveFont(40f);
             imageLabel.setFont(pacificoFont);
         } catch (FontFormatException | IOException e) {
             System.out.println("Lỗi khi nhúng font Pacifico-Regular: " + e.getMessage());
-            imageLabel.setFont(new Font("Serif", Font.BOLD, 30)); // Font dự phòng nếu lỗi
+            imageLabel.setFont(new Font("Serif", Font.BOLD, 30));
         }
-        imageLabel.setForeground(Color.WHITE); // Màu chữ trắng
+        imageLabel.setForeground(Color.WHITE);
         imageLabel.setPreferredSize(new Dimension(150, 40));
-        // Căn giữa logo trong netCoBlock
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.CENTER;
         netCoBlock.add(imageLabel, gbc);
-
-        JButton bellButton = new JButton("\uD83D\uDD14");
-        bellButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        bellButton.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        bellButton.setBackground(Color.WHITE);
-        bellButton.setForeground(Color.DARK_GRAY);
-        bellButton.setBorderPainted(false);
-        bellButton.setFocusPainted(false);
 
         JLabel account = new JLabel("Tài khoản");
         account.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -108,21 +108,18 @@ public class MainFrame extends JFrame {
         JPanel notification = new JPanel(new BorderLayout());
         notification.setPreferredSize(new Dimension(260, 80));
         notification.setBackground(Color.WHITE);
-        notification.add(bellButton, BorderLayout.WEST);
         notification.add(account, BorderLayout.EAST);
         notification.setBorder(BorderFactory.createEmptyBorder(10, 20, 15, 20));
 
         headerPanel.add(netCoBlock, BorderLayout.WEST);
         headerPanel.add(notification, BorderLayout.EAST);
 
-        // Sidebar with BoxLayout
         menuPanel = new JPanel();
         menuPanel.setLayout(new BoxLayout(menuPanel, BoxLayout.Y_AXIS));
         menuPanel.setPreferredSize(new Dimension(235, 0));
         menuPanel.setBackground(new Color(0, 54, 92));
         menuPanel.setBorder(BorderFactory.createEmptyBorder(50, 0, 0, 0));
 
-        // Content Panel
         JPanel paddingPanel = new JPanel(new BorderLayout());
         paddingPanel.setBorder(BorderFactory.createMatteBorder(16, 16, 16, 16, new Color(239, 241, 249)));
 
@@ -132,17 +129,29 @@ public class MainFrame extends JFrame {
         contentPanel.setBorder(BorderFactory.createMatteBorder(10, 10, 10, 10, Color.WHITE));
         paddingPanel.add(contentPanel, BorderLayout.CENTER);
 
-        // Add content panels
-        contentPanel.add(new ManageComputer(new DatabaseManager()), "Quản lý bàn máy");
-        contentPanel.add(new InventoryPanel(), "Kho hàng");
-        contentPanel.add(new PromotionsPanel(), "Khuyến mãi");
-        contentPanel.add(new StaffPanel(), "Quản lý thông tin");
-        contentPanel.add(new StatisticsPanel(), "Báo cáo - Thống kê");
-        contentPanel.add(new CustomerPanel(), "CustomerPanel");
-        contentPanel.add(new OrderPanel(), "OrderPanel");
-        contentPanel.add(new ServiceMenuPanel(), "ServiceMenuPanel");
+        manageComputer = new ManageComputer(new DatabaseManager(), userRole);
+        inventoryPanel = new InventoryPanel(userRole);
+        promotionsPanel = new PromotionsPanel(userRole);
+        staffPanel = new StaffPanel(userRole);
+        statisticsPanel = new StatisticsPanel();
+        customerPanel = new CustomerPanel(userRole);
+        orderPanel = new OrderPanel();
+        serviceMenuPanel = new ServiceMenuPanel();
+        importInfoPanel = new ImportInfoPanel();
 
-        // Main menu items
+        inventoryPanel.addMenuChangeListener(serviceMenuPanel);
+        promotionsPanel.addPromotionChangeListener(manageComputer);
+
+        contentPanel.add(manageComputer, "Quản lý bàn máy");
+        contentPanel.add(inventoryPanel, "Kho hàng");
+        contentPanel.add(promotionsPanel, "Khuyến mãi");
+        contentPanel.add(staffPanel, "Quản lý thông tin");
+        contentPanel.add(statisticsPanel, "Báo cáo - Thống kê");
+        contentPanel.add(customerPanel, "Quản lý khách hàng");
+        contentPanel.add(orderPanel, "Đơn đặt món");
+        contentPanel.add(serviceMenuPanel, "Thực đơn");
+        contentPanel.add(importInfoPanel, "Thông tin nhập hàng");
+
         String[] menuItems = {
                 "Quản lý bàn máy",
                 "Menu dịch vụ",
@@ -168,7 +177,6 @@ public class MainFrame extends JFrame {
             menuButtons.add(button);
         }
 
-        // Submenu panels
         subMenuManageInfo = new JPanel();
         subMenuManageInfo.setLayout(new BoxLayout(subMenuManageInfo, BoxLayout.Y_AXIS));
         subMenuManageInfo.setBackground(new Color(0, 54, 92));
@@ -181,16 +189,14 @@ public class MainFrame extends JFrame {
 
         rebuildMenu();
 
-        // Add main panel
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         mainPanel.add(menuPanel, BorderLayout.WEST);
         mainPanel.add(paddingPanel, BorderLayout.CENTER);
 
         add(mainPanel);
 
-        // Hiển thị panel mặc định khi khởi động
         cardLayout.show(contentPanel, "Quản lý bàn máy");
-        updateSelectedButton(menuButtons.get(0)); // Chọn nút "Quản lý bàn máy" mặc định
+        updateSelectedButton(menuButtons.get(0));
     }
 
     private void rebuildMenu() {
@@ -201,17 +207,19 @@ public class MainFrame extends JFrame {
         menuPanel.add(menuButtons.get(1));
         if (isSubMenuServiceMenuVisible) {
             subMenuServiceMenu.removeAll();
-            String[] subMenuItems = { "Thực đơn", "Đơn đặt món", "Kho hàng" };
+            String[] subMenuItems = { "Thực đơn", "Đơn đặt món", "Kho hàng", "Thông tin nhập hàng" };
             for (String item : subMenuItems) {
                 JButton button = new JButton(item);
                 styleSubMenuButton(button);
                 button.addActionListener(e -> {
                     if (item.equals("Thực đơn")) {
-                        cardLayout.show(contentPanel, "ServiceMenuPanel");
+                        cardLayout.show(contentPanel, "Thực đơn");
                     } else if (item.equals("Đơn đặt món")) {
-                        cardLayout.show(contentPanel, "OrderPanel");
+                        cardLayout.show(contentPanel, "Đơn đặt món");
                     } else if (item.equals("Kho hàng")) {
                         cardLayout.show(contentPanel, "Kho hàng");
+                    } else if (item.equals("Thông tin nhập hàng")) {
+                        cardLayout.show(contentPanel, "Thông tin nhập hàng");
                     }
                     updateSelectedButton(button);
                 });
@@ -225,7 +233,7 @@ public class MainFrame extends JFrame {
         menuPanel.add(menuButtons.get(3));
         if (isSubMenuManageInfoVisible) {
             subMenuManageInfo.removeAll();
-            String[] subMenuItems = { "Thông tin nhân viên", "Thông tin khách hàng" };
+            String[] subMenuItems = { "Thông tin nhân viên", "Quản lý khách hàng" };
             for (String item : subMenuItems) {
                 JButton button = new JButton(item);
                 styleSubMenuButton(button);
@@ -233,7 +241,7 @@ public class MainFrame extends JFrame {
                     if (item.equals("Thông tin nhân viên")) {
                         cardLayout.show(contentPanel, "Quản lý thông tin");
                     } else {
-                        cardLayout.show(contentPanel, "CustomerPanel");
+                        cardLayout.show(contentPanel, "Quản lý khách hàng");
                     }
                     updateSelectedButton(button);
                 });
@@ -268,9 +276,9 @@ public class MainFrame extends JFrame {
 
     private void showLoginPanel() {
         JOptionPane.showMessageDialog(this, "Trở về Đăng nhập");
-        dispose(); // Đóng MainFrame
+        dispose();
         LoginPanel login = new LoginPanel();
-        login.setVisible(true); // Chỉ hiển thị LoginPanel
+        login.setVisible(true);
     }
 
     private void styleMenuButton(JButton button) {
@@ -337,8 +345,8 @@ public class MainFrame extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            MainFrame frame = new MainFrame();
-            frame.setVisible(true); // Hiển thị MainFrame ngay khi chạy chương trình
+            MainFrame frame = new MainFrame("admin");
+            frame.setVisible(true);
         });
     }
 }

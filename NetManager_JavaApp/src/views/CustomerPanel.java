@@ -3,8 +3,8 @@ package views;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -13,8 +13,11 @@ public class CustomerPanel extends JPanel {
     private JTable customerTable;
     private DefaultTableModel tableModel;
     private SearchPanel searchPanel;
+    private TableRowSorter<DefaultTableModel> sorter;
+    private String userRole;
 
-    public CustomerPanel() {
+    public CustomerPanel(String userRole) {
+        this.userRole = userRole;
         dbManager = new DatabaseManager();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
@@ -28,6 +31,9 @@ public class CustomerPanel extends JPanel {
         String[] columns = { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Điểm tích lũy" };
         tableModel = new DefaultTableModel(columns, 0);
         customerTable = new JTable(tableModel);
+        sorter = new TableRowSorter<>(tableModel);
+        customerTable.setRowSorter(sorter);
+
         customerTable.setRowHeight(30);
         customerTable.setFont(new Font("IBM Plex Mono", Font.PLAIN, 14));
         customerTable.getTableHeader().setFont(new Font("IBM Plex Mono", Font.BOLD, 14));
@@ -39,12 +45,12 @@ public class CustomerPanel extends JPanel {
         customerTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
+                    boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(239, 241, 249));
                 }
-                if (column == 0 || column == 4) { // Căn giữa cột "Mã khách hàng" và "Điểm tích lũy"
+                if (column == 0 || column == 4) {
                     ((DefaultTableCellRenderer) c).setHorizontalAlignment(SwingConstants.CENTER);
                 }
                 return c;
@@ -56,30 +62,56 @@ public class CustomerPanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
 
         String[] filterOptions = { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email" };
-        searchPanel = new SearchPanel(filterOptions, this::filterTable);
+        searchPanel = new SearchPanel(filterOptions, e -> {
+            try {
+                String[] data = e.getActionCommand().split(";");
+                if (data.length != 2) {
+                    JOptionPane.showMessageDialog(this, "Dữ liệu tìm kiếm không hợp lệ!", "Lỗi",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                String keyword = data[0].trim();
+                int columnIndex = Integer.parseInt(data[1]);
+                if (keyword.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Vui lòng nhập từ khóa tìm kiếm!", "Lỗi",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                filterTable(keyword, columnIndex);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi định dạng cột tìm kiếm! Vui lòng thử lại.", "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        });
         add(searchPanel, BorderLayout.NORTH);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setBackground(Color.WHITE);
-        JButton addButton = new JButton("Thêm");
-        JButton editButton = new JButton("Sửa");
-        JButton deleteButton = new JButton("Xóa");
-        JButton rechargeButton = new JButton("Cập nhật điểm tích lũy");
 
-        styleButton(addButton);
-        styleButton(editButton);
-        styleButton(deleteButton);
+        JButton rechargeButton = new JButton("Cập nhật điểm tích lũy");
         styleButton(rechargeButton);
 
-        buttonPanel.add(addButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(deleteButton);
+        if (!"user".equals(userRole)) {
+            JButton addButton = new JButton("Thêm");
+            JButton editButton = new JButton("Sửa");
+            JButton deleteButton = new JButton("Xóa");
+
+            styleButton(addButton);
+            styleButton(editButton);
+            styleButton(deleteButton);
+
+            addButton.addActionListener(e -> addCustomer());
+            editButton.addActionListener(e -> editCustomer());
+            deleteButton.addActionListener(e -> deleteCustomer());
+
+            buttonPanel.add(addButton);
+            buttonPanel.add(editButton);
+            buttonPanel.add(deleteButton);
+        }
+
         buttonPanel.add(rechargeButton);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        addButton.addActionListener(e -> addCustomer());
-        editButton.addActionListener(e -> editCustomer());
-        deleteButton.addActionListener(e -> deleteCustomer());
         rechargeButton.addActionListener(e -> updatePoints());
 
         loadData();
@@ -105,44 +137,17 @@ public class CustomerPanel extends JPanel {
         }
     }
 
-    private void filterTable(ActionEvent e) {
-        String keyword = searchPanel.getSearchField().getText().trim().toLowerCase();
-        String selectedFilter = searchPanel.getFilterComboBox().getSelectedItem().toString();
-        DefaultTableModel filteredModel = new DefaultTableModel(
-                new String[] { "Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Điểm tích lũy" }, 0);
-
-        for (int i = 0; i < tableModel.getRowCount(); i++) {
-            String value;
-            switch (selectedFilter) {
-                case "Mã khách hàng":
-                    value = tableModel.getValueAt(i, 0).toString().toLowerCase();
-                    break;
-                case "Tên khách hàng":
-                    value = tableModel.getValueAt(i, 1).toString().toLowerCase();
-                    break;
-                case "Số điện thoại":
-                    value = tableModel.getValueAt(i, 2).toString().toLowerCase();
-                    break;
-                case "Email":
-                    value = tableModel.getValueAt(i, 3).toString().toLowerCase();
-                    break;
-                default:
-                    value = "";
-            }
-            if (value.contains(keyword)) {
-                filteredModel.addRow(new Object[] {
-                        tableModel.getValueAt(i, 0),
-                        tableModel.getValueAt(i, 1),
-                        tableModel.getValueAt(i, 2),
-                        tableModel.getValueAt(i, 3),
-                        tableModel.getValueAt(i, 4)
-                });
-            }
-        }
-        customerTable.setModel(filteredModel);
+    private void filterTable(String keyword, int columnIndex) {
+        sorter.setRowFilter(RowFilter.regexFilter("(?i)" + keyword, columnIndex));
     }
 
     private void addCustomer() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền thêm khách hàng!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         JTextField maKHField = new JTextField();
         JTextField tenKHField = new JTextField();
         JTextField sdtField = new JTextField();
@@ -190,6 +195,12 @@ public class CustomerPanel extends JPanel {
     }
 
     private void editCustomer() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền sửa khách hàng!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int selectedRow = customerTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn khách hàng để sửa!", "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -254,6 +265,12 @@ public class CustomerPanel extends JPanel {
     }
 
     private void deleteCustomer() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền xóa khách hàng!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int selectedRow = customerTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn khách hàng để xóa!", "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -332,7 +349,7 @@ public class CustomerPanel extends JPanel {
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(70, 150, 200));
+                button.setBackground(new Color(70, 180, 200));
             }
 
             @Override

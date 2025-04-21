@@ -6,14 +6,20 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class InventoryPanel extends JPanel {
     private DatabaseManager dbManager;
     private JTable inventoryTable;
     private DefaultTableModel tableModel;
+    private List<MenuChangeListener> menuChangeListeners;
+    private String userRole;
 
-    public InventoryPanel() {
+    public InventoryPanel(String userRole) {
+        this.userRole = userRole;
         dbManager = new DatabaseManager();
+        menuChangeListeners = new ArrayList<>();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
 
@@ -58,28 +64,46 @@ public class InventoryPanel extends JPanel {
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
 
-        JButton addButton = new JButton("Thêm");
-        JButton editButton = new JButton("Sửa");
-        JButton deleteButton = new JButton("Xóa");
         JButton refreshButton = new JButton("Làm mới");
-
-        styleButton(addButton);
-        styleButton(editButton);
-        styleButton(deleteButton);
         styleButton(refreshButton);
 
-        buttonPanel.add(addButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(deleteButton);
+        if (!"user".equals(userRole)) {
+            JButton addButton = new JButton("Thêm");
+            JButton editButton = new JButton("Sửa");
+            JButton deleteButton = new JButton("Xóa");
+
+            styleButton(addButton);
+            styleButton(editButton);
+            styleButton(deleteButton);
+
+            addButton.addActionListener(e -> addInventory());
+            editButton.addActionListener(e -> editInventory());
+            deleteButton.addActionListener(e -> deleteInventory());
+
+            buttonPanel.add(addButton);
+            buttonPanel.add(editButton);
+            buttonPanel.add(deleteButton);
+        }
+
         buttonPanel.add(refreshButton);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        addButton.addActionListener(e -> addInventory());
-        editButton.addActionListener(e -> editInventory());
-        deleteButton.addActionListener(e -> deleteInventory());
-        refreshButton.addActionListener(e -> loadData());
+        refreshButton.addActionListener(e -> {
+            loadData();
+            notifyMenuChanged();
+        });
 
         loadData();
+    }
+
+    public void addMenuChangeListener(MenuChangeListener listener) {
+        menuChangeListeners.add(listener);
+    }
+
+    private void notifyMenuChanged() {
+        for (MenuChangeListener listener : menuChangeListeners) {
+            listener.onMenuChanged();
+        }
     }
 
     private void loadData() {
@@ -123,6 +147,12 @@ public class InventoryPanel extends JPanel {
     }
 
     private void addInventory() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền thêm sản phẩm!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         JTextField maSpField = new JTextField(10);
         JTextField tenSpField = new JTextField(10);
         JTextField tonDuField = new JTextField(5);
@@ -131,7 +161,17 @@ public class InventoryPanel extends JPanel {
         JComboBox<String> danhMucCombo = new JComboBox<>(new String[] { "Đồ ăn", "Đồ uống" });
         JComboBox<String> dangBanCombo = new JComboBox<>(new String[] { "Có", "Không" });
 
-        JPanel panel = new JPanel(new GridLayout(6, 2));
+        maSpField.setPreferredSize(new Dimension(200, 30));
+        tenSpField.setPreferredSize(new Dimension(200, 30));
+        tonDuField.setPreferredSize(new Dimension(200, 30));
+        giaNhapField.setPreferredSize(new Dimension(200, 30));
+        giaBanField.setPreferredSize(new Dimension(200, 30));
+        danhMucCombo.setPreferredSize(new Dimension(200, 30));
+        dangBanCombo.setPreferredSize(new Dimension(200, 30));
+
+        JPanel panel = new JPanel(new GridLayout(14, 1, 5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
         panel.add(new JLabel("Mã sản phẩm:"));
         panel.add(maSpField);
         panel.add(new JLabel("Tên sản phẩm:"));
@@ -164,7 +204,6 @@ public class InventoryPanel extends JPanel {
                     return;
                 }
 
-                // Kiểm tra xem MaSP đã tồn tại trong KHO chưa
                 ResultSet rs = dbManager.select("KHO", new String[] { "MaSP" }, "MaSP = ?", new Object[] { maSp });
                 if (rs.next()) {
                     JOptionPane.showMessageDialog(this, "Mã sản phẩm đã tồn tại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -173,13 +212,11 @@ public class InventoryPanel extends JPanel {
                 }
                 rs.close();
 
-                // Thêm vào bảng KHO
                 dbManager.insert("KHO", new Object[] { maSp, tenSp, tonDu, null, giaNhap, null });
-
-                // Thêm vào bảng MON_AN
                 dbManager.insert("MON_AN", new Object[] { maSp, tenSp, giaBan, danhMuc, dangBan });
 
                 loadData();
+                notifyMenuChanged();
             } catch (SQLException | NumberFormatException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi thêm sản phẩm: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -188,6 +225,12 @@ public class InventoryPanel extends JPanel {
     }
 
     private void editInventory() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền sửa sản phẩm!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int selectedRow = inventoryTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm để sửa!", "Cảnh báo",
@@ -203,7 +246,6 @@ public class InventoryPanel extends JPanel {
         JComboBox<String> danhMucCombo = new JComboBox<>(new String[] { "Đồ ăn", "Đồ uống" });
         JComboBox<String> dangBanCombo = new JComboBox<>(new String[] { "Có", "Không" });
 
-        // Lấy thông tin hiện tại từ bảng MON_AN
         try {
             ResultSet rs = dbManager.select("MON_AN", new String[] { "GiaBan", "DanhMuc", "DangBan" }, "MaSP = ?",
                     new Object[] { maSp });
@@ -219,7 +261,16 @@ public class InventoryPanel extends JPanel {
             return;
         }
 
-        JPanel panel = new JPanel(new GridLayout(5, 2));
+        tenSpField.setPreferredSize(new Dimension(200, 30));
+        tonDuField.setPreferredSize(new Dimension(200, 30));
+        giaNhapField.setPreferredSize(new Dimension(200, 30));
+        giaBanField.setPreferredSize(new Dimension(200, 30));
+        danhMucCombo.setPreferredSize(new Dimension(200, 30));
+        dangBanCombo.setPreferredSize(new Dimension(200, 30));
+
+        JPanel panel = new JPanel(new GridLayout(12, 1, 5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
         panel.add(new JLabel("Tên sản phẩm:"));
         panel.add(tenSpField);
         panel.add(new JLabel("Số lượng:"));
@@ -243,15 +294,14 @@ public class InventoryPanel extends JPanel {
                 String danhMuc = (String) danhMucCombo.getSelectedItem();
                 String dangBan = (String) dangBanCombo.getSelectedItem();
 
-                // Cập nhật bảng KHO
                 dbManager.update("KHO", new String[] { "TenSP", "TonDu", "GiaNhap" },
                         new Object[] { tenSp, tonDu, giaNhap }, "MaSP = ?", new Object[] { maSp });
 
-                // Cập nhật bảng MON_AN
                 dbManager.update("MON_AN", new String[] { "TenSP", "GiaBan", "DanhMuc", "DangBan" },
                         new Object[] { tenSp, giaBan, danhMuc, dangBan }, "MaSP = ?", new Object[] { maSp });
 
                 loadData();
+                notifyMenuChanged();
             } catch (SQLException | NumberFormatException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi sửa sản phẩm: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -260,6 +310,12 @@ public class InventoryPanel extends JPanel {
     }
 
     private void deleteInventory() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền xóa sản phẩm!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int selectedRow = inventoryTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm để xóa!", "Cảnh báo",
@@ -272,7 +328,6 @@ public class InventoryPanel extends JPanel {
                 JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                // Kiểm tra xem sản phẩm có được sử dụng trong CHI_TIET_HOA_DON không
                 ResultSet rs = dbManager.select("CHI_TIET_HOA_DON", new String[] { "MaSP" }, "MaSP = ?",
                         new Object[] { maSp });
                 if (rs.next()) {
@@ -283,13 +338,11 @@ public class InventoryPanel extends JPanel {
                 }
                 rs.close();
 
-                // Xóa sản phẩm từ bảng KHO
                 dbManager.delete("KHO", "MaSP = ?", new Object[] { maSp });
-
-                // Xóa sản phẩm từ bảng MON_AN
                 dbManager.delete("MON_AN", "MaSP = ?", new Object[] { maSp });
 
                 loadData();
+                notifyMenuChanged();
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi xóa sản phẩm: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);

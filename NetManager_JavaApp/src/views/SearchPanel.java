@@ -2,6 +2,7 @@ package views;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 public class SearchPanel extends JPanel {
@@ -26,7 +27,25 @@ public class SearchPanel extends JPanel {
         searchButton.setFocusPainted(false);
         searchButton.setPreferredSize(new Dimension(120, 35));
 
-        searchButton.addActionListener(searchListener);
+        searchButton.addActionListener(e -> {
+            String keyword = searchField.getText().trim();
+            int columnIndex = filterComboBox.getSelectedIndex();
+
+            // Kiểm tra nếu từ khóa trống
+            if (keyword.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập từ khóa tìm kiếm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Tạo actionCommand dạng "keyword;columnIndex"
+            String actionCommand = keyword + ";" + columnIndex;
+
+            // Tạo một ActionEvent mới với actionCommand
+            ActionEvent newEvent = new ActionEvent(searchButton, ActionEvent.ACTION_PERFORMED, actionCommand);
+
+            // Gọi searchListener với ActionEvent mới
+            searchListener.actionPerformed(newEvent);
+        });
 
         add(searchLabel);
         add(searchField);

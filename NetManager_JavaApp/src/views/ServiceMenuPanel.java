@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
+public class ServiceMenuPanel extends JPanel implements ComputerStatusListener, MenuChangeListener {
     private DatabaseManager dbManager;
     private JPanel menuItemsPanel;
     private List<MenuItem> menuItems;
@@ -58,16 +58,19 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
 
         loadMenuItems();
         updateDateTime();
-
+        loadComputers();
         ComputerStatusManager.getInstance().addListener(this);
-
-        Timer timer = new Timer(5000, e -> loadComputers());
-        timer.start();
     }
 
     @Override
     public void onComputerStatusChanged(String maMay, String newStatus) {
         computerStatusMap.put(maMay, newStatus);
+        loadComputers();
+    }
+
+    @Override
+    public void onMenuChanged() {
+        loadMenuItems();
     }
 
     private JPanel createLeftPanel() {
@@ -93,9 +96,7 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
 
         JButton refreshButton = new JButton("Làm mới");
         styleButton(refreshButton);
-        refreshButton.addActionListener(e -> {
-            loadMenuItems();
-        });
+        refreshButton.addActionListener(e -> loadMenuItems());
 
         topRow.add(searchLabel);
         topRow.add(searchField);
@@ -158,7 +159,6 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
         infoPanel.add(new JLabel("Máy đặt:"));
         computerComboBox = new JComboBox<>();
         computerComboBox.addItem("");
-        loadComputers();
         infoPanel.add(computerComboBox);
 
         panel.add(infoPanel, BorderLayout.NORTH);
@@ -194,9 +194,7 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
 
         JButton clearAllButton = new JButton("Xóa tất cả");
         styleButton(clearAllButton);
-        clearAllButton.addActionListener(e -> {
-            clearAllItems();
-        });
+        clearAllButton.addActionListener(e -> clearAllItems());
 
         buttonPanel.add(placeOrderButton);
         buttonPanel.add(removeSelectedButton);
@@ -258,11 +256,11 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
     private void loadComputers() {
         String selected = (String) computerComboBox.getSelectedItem();
         computerList.clear();
-        computerStatusMap.clear();
         computerComboBox.removeAllItems();
         computerComboBox.addItem("");
         try {
-            ResultSet rs = dbManager.select("BAN_MAY", new String[] { "MaMay", "SoMay", "TrangThai" }, "");
+            ResultSet rs = dbManager.select("BAN_MAY", new String[] { "MaMay", "SoMay", "TrangThai" },
+                    "TrangThai = 'Đang sử dụng'");
             while (rs.next()) {
                 String maMay = String.valueOf(rs.getInt("MaMay"));
                 String soMay = rs.getString("SoMay");
@@ -277,7 +275,11 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
             JOptionPane.showMessageDialog(this, "Lỗi tải danh sách máy: " + e.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
-        computerComboBox.setSelectedItem(selected);
+        if (selected != null && computerList.contains(selected)) {
+            computerComboBox.setSelectedItem(selected);
+        } else {
+            computerComboBox.setSelectedIndex(0);
+        }
     }
 
     private void displayMenuItems() {
@@ -361,7 +363,7 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
             Collections.sort(menuItems, new Comparator<MenuItem>() {
                 @Override
                 public int compare(MenuItem o1, MenuItem o2) {
-                    return selectedSort.equals("A-Z") ? o1.name.compareTo(o2.name) : o2.name.compareTo(o1.name);
+                    return selectedSort.equals("A-Z") ? o1.name.compareTo(o2.name) : o2.name.compareTo(o2.name);
                 }
             });
         }
@@ -469,17 +471,68 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
             for (OrderedItem orderedItem : orderedItems) {
                 String maSP = orderedItem.item.id;
                 int quantity = orderedItem.quantity;
+
+                // Kiểm tra số lượng tồn kho
+                int tonDu = -1; // Khởi tạo với giá trị không hợp lệ
+                ResultSet rsKho = dbManager.select("KHO", new String[] { "TonDu" }, "MaSP=?", new Object[] { maSP });
+                if (rsKho.next()) {
+                    tonDu = rsKho.getInt("TonDu");
+                    if (tonDu < quantity) {
+                        rsKho.close();
+                        JOptionPane.showMessageDialog(this,
+                                "Sản phẩm " + orderedItem.item.name + " không đủ tồn kho! Còn: " + tonDu, "Cảnh báo",
+                                JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                } else {
+                    rsKho.close();
+                    JOptionPane.showMessageDialog(this,
+                            "Sản phẩm " + orderedItem.item.name + " không tồn tại trong kho!", "Lỗi",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                rsKho.close();
+
                 ResultSet rs = dbManager.select("MON_AN", new String[] { "GiaBan" }, "MaSP=?", new Object[] { maSP });
                 if (rs.next()) {
                     double gia = rs.getDouble("GiaBan");
                     double thanhTien = gia * quantity;
                     totalServiceFee += thanhTien;
 
-                    dbManager.insert("CHI_TIET_HOA_DON", new Object[] { maHD, maSP, quantity, thanhTien });
+                    // Kiểm tra xem món đã tồn tại trong hóa đơn chưa
+                    ResultSet existingItemRs = dbManager.select("CHI_TIET_HOA_DON",
+                            new String[] { "SoLuong", "ThanhTien" },
+                            "MaHD=? AND MaSP=?", new Object[] { maHD, maSP });
+                    if (existingItemRs.next()) {
+                        // Cập nhật số lượng và thành tiền nếu món đã tồn tại
+                        int existingQuantity = existingItemRs.getInt("SoLuong");
+                        double existingThanhTien = existingItemRs.getDouble("ThanhTien");
+                        dbManager.update("CHI_TIET_HOA_DON",
+                                new String[] { "SoLuong", "ThanhTien" },
+                                new Object[] { existingQuantity + quantity, existingThanhTien + thanhTien },
+                                "MaHD=? AND MaSP=?", new Object[] { maHD, maSP });
+                    } else {
+                        // Thêm mới nếu món chưa tồn tại
+                        dbManager.insert("CHI_TIET_HOA_DON", new Object[] { maHD, maSP, quantity, thanhTien });
+                    }
+                    existingItemRs.close();
+
+                    // Cập nhật số lượng tồn kho
+                    if (tonDu >= quantity) { // Kiểm tra an toàn
+                        dbManager.update("KHO",
+                                new String[] { "TonDu" },
+                                new Object[] { tonDu - quantity },
+                                "MaSP=?", new Object[] { maSP });
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Lỗi: Số lượng tồn kho không đủ!", "Lỗi",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
                 }
                 rs.close();
             }
 
+            // Cập nhật tổng tiền dịch vụ trong hóa đơn
             ResultSet rs = dbManager.select("HOA_DON", new String[] { "SoTien" }, "MaHD=?", new Object[] { maHD });
             if (rs.next()) {
                 double currentSoTien = rs.getDouble("SoTien");
@@ -494,6 +547,9 @@ public class ServiceMenuPanel extends JPanel implements ComputerStatusListener {
             JOptionPane.showMessageDialog(this, "Đặt món thành công! Mã hóa đơn: " + maHD, "Thành công",
                     JOptionPane.INFORMATION_MESSAGE);
             clearAllItems();
+
+            // Thông báo cập nhật dịch vụ cho ManageComputer
+            ComputerStatusManager.getInstance().notifyComputerStatusChanged(maMay, "Cập nhật dịch vụ");
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi đặt món: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }

@@ -77,6 +77,14 @@ public class DatabaseManager {
                         "GiaThueBan NUMERIC NOT NULL CHECK (GiaThueBan >= 0), " +
                         "TrangThai VARCHAR(20) NOT NULL CHECK (TrangThai IN ('Sẵn sàng', 'Đang sử dụng', 'Bảo trì')))");
 
+                // Bảng KHACH_HANG
+                stmt.execute("CREATE TABLE IF NOT EXISTS KHACH_HANG (" +
+                        "MaKH VARCHAR(10) PRIMARY KEY, " +
+                        "TenKH VARCHAR(50) NOT NULL, " +
+                        "SDT VARCHAR(15) CHECK (SDT GLOB '[0-9]*'), " +
+                        "Email VARCHAR(50), " +
+                        "DiemTichLuy INTEGER CHECK (DiemTichLuy >= 0))");
+
                 // Bảng HOA_DON (thêm khóa ngoại)
                 stmt.execute("CREATE TABLE IF NOT EXISTS HOA_DON (" +
                         "MaHD VARCHAR(10) PRIMARY KEY, " +
@@ -91,6 +99,23 @@ public class DatabaseManager {
                         "FOREIGN KEY (MaKH) REFERENCES KHACH_HANG(MaKH) ON DELETE RESTRICT, " +
                         "FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV) ON DELETE RESTRICT, " +
                         "FOREIGN KEY (MaMay) REFERENCES BAN_MAY(MaMay) ON DELETE RESTRICT)");
+
+                // Bảng NHAP_HANG
+                stmt.execute("CREATE TABLE IF NOT EXISTS NHAP_HANG (" +
+                        "MaNhap VARCHAR(10) PRIMARY KEY, " +
+                        "NgayNhap TEXT NOT NULL, " +
+                        "NguonNhap TEXT NOT NULL, " +
+                        "TongTien INTEGER NOT NULL CHECK (TongTien >= 0))");
+
+                // Bảng CHI_TIET_NHAP_HANG
+                stmt.execute("CREATE TABLE IF NOT EXISTS CHI_TIET_HOA_DON (" +
+                        "MaHD VARCHAR(10) NOT NULL, " +
+                        "MaSP VARCHAR(10) NOT NULL, " +
+                        "SoLuong INTEGER NOT NULL CHECK (SoLuong > 0), " +
+                        "ThanhTien NUMERIC NOT NULL CHECK (ThanhTien >= 0), " +
+                        "FOREIGN KEY (MaHD) REFERENCES HOA_DON(MaHD) ON DELETE CASCADE, " +
+                        "FOREIGN KEY (MaSP) REFERENCES KHO(MaSP) ON DELETE RESTRICT, " +
+                        "PRIMARY KEY (MaHD, MaSP))");
 
                 // Kiểm tra số dòng trong các bảng
                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM TAI_KHOAN");
@@ -117,6 +142,12 @@ public class DatabaseManager {
                 }
                 rs.close();
 
+                rs = stmt.executeQuery("SELECT COUNT(*) FROM KHACH_HANG");
+                if (rs.next()) {
+                    System.out.println("Số dòng trong bảng KHACH_HANG: " + rs.getInt(1));
+                }
+                rs.close();
+
                 rs = stmt.executeQuery("SELECT COUNT(*) FROM HOA_DON");
                 if (rs.next()) {
                     System.out.println("Số dòng trong bảng HOA_DON: " + rs.getInt(1));
@@ -126,6 +157,18 @@ public class DatabaseManager {
                 rs = stmt.executeQuery("SELECT COUNT(*) FROM BAN_MAY");
                 if (rs.next()) {
                     System.out.println("Số dòng trong bảng BAN_MAY: " + rs.getInt(1));
+                }
+                rs.close();
+
+                rs = stmt.executeQuery("SELECT COUNT(*) FROM NHAP_HANG");
+                if (rs.next()) {
+                    System.out.println("Số dòng trong bảng NHAP_HANG: " + rs.getInt(1));
+                }
+                rs.close();
+
+                rs = stmt.executeQuery("SELECT COUNT(*) FROM CHI_TIET_NHAP_HANG");
+                if (rs.next()) {
+                    System.out.println("Số dòng trong bảng CHI_TIET_NHAP_HANG: " + rs.getInt(1));
                 }
                 rs.close();
             }
@@ -154,6 +197,12 @@ public class DatabaseManager {
         } else if (table.equals("KHACH_HANG")) {
             sql = "INSERT INTO KHACH_HANG (MaKH, TenKH, SDT, Email, DiemTichLuy) VALUES (?, ?, ?, ?, ?)";
             expectedValueCount = 5;
+        } else if (table.equals("NHAP_HANG")) {
+            sql = "INSERT INTO NHAP_HANG (MaNhap, NgayNhap, NguonNhap, TongTien) VALUES (?, ?, ?, ?)";
+            expectedValueCount = 4;
+        } else if (table.equals("CHI_TIET_NHAP_HANG")) {
+            sql = "INSERT INTO CHI_TIET_NHAP_HANG (MaNhap, MaSP, SoLuong, GiaNhap) VALUES (?, ?, ?, ?)";
+            expectedValueCount = 4;
         } else {
             int columnCount;
             try (ResultSet rs = connection.getMetaData().getColumns(null, null, table, null)) {

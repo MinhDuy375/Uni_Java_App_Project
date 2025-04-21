@@ -43,12 +43,12 @@ public class LoginPanel extends JFrame {
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
 
-        // Logo dạng chữ "NétCỏ"
         JLabel lblLogo = new JLabel("NétCỏ", SwingConstants.CENTER);
         try {
             File fontFile = new File("NetManager_JavaApp/resources/fonts/Pacifico-Regular.ttf");
             if (!fontFile.exists()) {
-                throw new IOException("File font Pacifico-Regular.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
+                throw new IOException(
+                        "File font Pacifico-Regular.ttf không tồn tại tại: " + fontFile.getAbsolutePath());
             }
             Font pacificoFont = Font.createFont(Font.TRUETYPE_FONT, fontFile).deriveFont(60f);
             lblLogo.setFont(pacificoFont);
@@ -115,20 +115,17 @@ public class LoginPanel extends JFrame {
                 return;
             }
 
-            if (isManager) {
-                if (checkLogin(id, matkhau, "admin")) {
-                    JOptionPane.showMessageDialog(null, "Đăng nhập thành công với vai trò Quản lý!", "Thông báo",
-                            JOptionPane.INFORMATION_MESSAGE);
-                    dispose();
-                    MainFrame mainFrame = new MainFrame();
-                    mainFrame.setVisible(true);
-                } else {
-                    JOptionPane.showMessageDialog(null, "Sai ID, mật khẩu hoặc không có quyền Quản lý!", "Lỗi",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            } else {
-                JOptionPane.showMessageDialog(null, "Chưa triển khai giao diện cho Nhân viên!", "Thông báo",
+            String role = isManager ? "admin" : "user";
+            if (checkLogin(id, matkhau, role)) {
+                JOptionPane.showMessageDialog(null,
+                        "Đăng nhập thành công với vai trò " + (isManager ? "Quản lý" : "Nhân viên") + "!", "Thông báo",
                         JOptionPane.INFORMATION_MESSAGE);
+                dispose();
+                MainFrame mainFrame = new MainFrame(role);
+                mainFrame.setVisible(true);
+            } else {
+                JOptionPane.showMessageDialog(null, "Sai ID, mật khẩu, vai trò hoặc tài khoản không hoạt động!", "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
     }
@@ -204,16 +201,22 @@ public class LoginPanel extends JFrame {
     }
 
     private boolean checkLogin(String id, String matkhau, String expectedChucvu) {
-        String query = "SELECT * FROM TAI_KHOAN WHERE id = ? AND matkhau = ? AND chucvu = ?";
-
         try {
-            ResultSet rs = dbManager.select("TAI_KHOAN", new String[] { "id", "matkhau", "chucvu" },
-                    "id = '" + id + "' AND matkhau = '" + matkhau + "' AND chucvu = '" + expectedChucvu + "'");
+            // Use the parameterized select method to avoid SQL injection and ensure proper
+            // query execution
+            ResultSet rs = dbManager.select("TAI_KHOAN",
+                    new String[] { "id", "matkhau", "chucvu", "tinhtrang" },
+                    "id = ? AND matkhau = ? AND chucvu = ? AND tinhtrang = ?",
+                    new Object[] { Integer.parseInt(id), matkhau, expectedChucvu, 1 });
+
             boolean loginSuccess = rs.next();
             rs.close();
             return loginSuccess;
         } catch (SQLException e) {
             System.out.println("Lỗi đăng nhập: " + e.getMessage());
+            return false;
+        } catch (NumberFormatException e) {
+            System.out.println("ID phải là số nguyên: " + e.getMessage());
             return false;
         }
     }

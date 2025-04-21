@@ -6,15 +6,21 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PromotionsPanel extends JPanel {
     private DatabaseManager dbManager;
     private DefaultTableModel tableModel;
     private JTable promotionsTable;
     private JTextField searchField;
+    private List<PromotionChangeListener> promotionChangeListeners;
+    private String userRole;
 
-    public PromotionsPanel() {
+    public PromotionsPanel(String userRole) {
+        this.userRole = userRole;
         dbManager = new DatabaseManager();
+        promotionChangeListeners = new ArrayList<>();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
 
@@ -40,7 +46,7 @@ public class PromotionsPanel extends JPanel {
         promotionsTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
+                    boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(239, 241, 249));
@@ -74,31 +80,48 @@ public class PromotionsPanel extends JPanel {
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.setBackground(Color.WHITE);
-        JButton addButton = new JButton("Thêm");
-        JButton editButton = new JButton("Sửa");
-        JButton deleteButton = new JButton("Xóa");
         JButton refreshButton = new JButton("Làm mới");
-
-        styleButton(addButton);
-        styleButton(editButton);
-        styleButton(deleteButton);
         styleButton(refreshButton);
 
-        buttonPanel.add(addButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(deleteButton);
-        buttonPanel.add(refreshButton);
+        if (!"user".equals(userRole)) {
+            JButton addButton = new JButton("Thêm");
+            JButton editButton = new JButton("Sửa");
+            JButton deleteButton = new JButton("Xóa");
 
+            styleButton(addButton);
+            styleButton(editButton);
+            styleButton(deleteButton);
+
+            addButton.addActionListener(e -> addPromotion());
+            editButton.addActionListener(e -> editPromotion());
+            deleteButton.addActionListener(e -> deletePromotion());
+
+            buttonPanel.add(addButton);
+            buttonPanel.add(editButton);
+            buttonPanel.add(deleteButton);
+        }
+
+        buttonPanel.add(refreshButton);
         controlPanel.add(buttonPanel, BorderLayout.SOUTH);
         add(controlPanel, BorderLayout.SOUTH);
 
-        addButton.addActionListener(e -> addPromotion());
-        editButton.addActionListener(e -> editPromotion());
-        deleteButton.addActionListener(e -> deletePromotion());
-        refreshButton.addActionListener(e -> loadData());
+        refreshButton.addActionListener(e -> {
+            loadData();
+            notifyPromotionChanged();
+        });
         searchButton.addActionListener(e -> searchPromotions());
 
         loadData();
+    }
+
+    public void addPromotionChangeListener(PromotionChangeListener listener) {
+        promotionChangeListeners.add(listener);
+    }
+
+    private void notifyPromotionChanged() {
+        for (PromotionChangeListener listener : promotionChangeListeners) {
+            listener.onPromotionChanged();
+        }
     }
 
     private void loadData() {
@@ -118,8 +141,6 @@ public class PromotionsPanel extends JPanel {
                 int discountPercentage = (int) ((1 - mucKM) * 100);
                 String mucKMDisplay = discountPercentage + "%";
 
-                System.out.println("Dữ liệu KHUYEN_MAI: " + maKM + ", " + tenChuongTrinh + ", " + mucKM + ", "
-                        + tgBatDau + ", " + tgKetThuc + ", " + trangThai);
                 tableModel.addRow(new Object[] {
                         maKM,
                         tenChuongTrinh,
@@ -130,11 +151,9 @@ public class PromotionsPanel extends JPanel {
                 });
                 rowCount++;
             }
-            System.out.println("Số dòng dữ liệu hiển thị trong PromotionsPanel: " + rowCount);
             tableModel.fireTableDataChanged();
             rs.close();
         } catch (SQLException e) {
-            System.out.println("Lỗi tải dữ liệu khuyến mãi: " + e.getMessage());
             JOptionPane.showMessageDialog(this, "Lỗi tải dữ liệu khuyến mãi: " + e.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -164,18 +183,23 @@ public class PromotionsPanel extends JPanel {
             }
             rs.close();
         } catch (SQLException e) {
-            System.out.println("Lỗi tìm kiếm khuyến mãi: " + e.getMessage());
             JOptionPane.showMessageDialog(this, "Lỗi tìm kiếm: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void addPromotion() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền thêm khuyến mãi!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         JTextField maKmField = new JTextField(10);
         JTextField tenChuongTrinhField = new JTextField(10);
         JTextField mucKmField = new JTextField("0.8", 10);
         JTextField tgBatDauField = new JTextField(10);
         JTextField tgKetThucField = new JTextField(10);
-        JTextField trangThaiField = new JTextField(10);
+        JComboBox<String> trangThaiCombo = new JComboBox<>(new String[] { "Hoạt động", "Kết thúc" });
 
         JPanel panel = new JPanel(new GridLayout(6, 2));
         panel.add(new JLabel("Mã khuyến mãi:"));
@@ -189,7 +213,7 @@ public class PromotionsPanel extends JPanel {
         panel.add(new JLabel("Thời gian kết thúc (yyyy-MM-dd HH:mm:ss):"));
         panel.add(tgKetThucField);
         panel.add(new JLabel("Trạng thái:"));
-        panel.add(trangThaiField);
+        panel.add(trangThaiCombo);
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Thêm khuyến mãi", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
@@ -199,10 +223,10 @@ public class PromotionsPanel extends JPanel {
                 String mucKmStr = mucKmField.getText();
                 String tgBatDau = tgBatDauField.getText();
                 String tgKetThuc = tgKetThucField.getText();
-                String trangThai = trangThaiField.getText();
+                String trangThai = (String) trangThaiCombo.getSelectedItem();
 
                 if (maKm.isEmpty() || tenChuongTrinh.isEmpty() || mucKmStr.isEmpty() || tgBatDau.isEmpty()
-                        || tgKetThuc.isEmpty() || trangThai.isEmpty()) {
+                        || tgKetThuc.isEmpty()) {
                     JOptionPane.showMessageDialog(this, "Vui lòng điền đầy đủ thông tin!", "Cảnh báo",
                             JOptionPane.WARNING_MESSAGE);
                     return;
@@ -226,6 +250,7 @@ public class PromotionsPanel extends JPanel {
                         new Object[] { maKm, tenChuongTrinh, mucKm, tgBatDau, tgKetThuc, trangThai });
                 JOptionPane.showMessageDialog(this, "Thêm khuyến mãi thành công!");
                 loadData();
+                notifyPromotionChanged();
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi thêm khuyến mãi: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -234,6 +259,12 @@ public class PromotionsPanel extends JPanel {
     }
 
     private void editPromotion() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền sửa khuyến mãi!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int selectedRow = promotionsTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn một khuyến mãi để sửa!", "Cảnh báo",
@@ -260,7 +291,8 @@ public class PromotionsPanel extends JPanel {
         JTextField mucKmField = new JTextField(String.valueOf(mucKmValue), 10);
         JTextField tgBatDauField = new JTextField(tableModel.getValueAt(selectedRow, 3).toString(), 10);
         JTextField tgKetThucField = new JTextField(tableModel.getValueAt(selectedRow, 4).toString(), 10);
-        JTextField trangThaiField = new JTextField(tableModel.getValueAt(selectedRow, 5).toString(), 10);
+        JComboBox<String> trangThaiCombo = new JComboBox<>(new String[] { "Hoạt động", "Kết thúc" });
+        trangThaiCombo.setSelectedItem(tableModel.getValueAt(selectedRow, 5).toString());
 
         JPanel panel = new JPanel(new GridLayout(5, 2));
         panel.add(new JLabel("Tên chương trình:"));
@@ -272,7 +304,7 @@ public class PromotionsPanel extends JPanel {
         panel.add(new JLabel("Thời gian kết thúc (yyyy-MM-dd HH:mm:ss):"));
         panel.add(tgKetThucField);
         panel.add(new JLabel("Trạng thái:"));
-        panel.add(trangThaiField);
+        panel.add(trangThaiCombo);
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Sửa khuyến mãi", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
@@ -281,10 +313,9 @@ public class PromotionsPanel extends JPanel {
                 String mucKmStr = mucKmField.getText();
                 String tgBatDau = tgBatDauField.getText();
                 String tgKetThuc = tgKetThucField.getText();
-                String trangThai = trangThaiField.getText();
+                String trangThai = (String) trangThaiCombo.getSelectedItem();
 
-                if (tenChuongTrinh.isEmpty() || mucKmStr.isEmpty() || tgBatDau.isEmpty() || tgKetThuc.isEmpty()
-                        || trangThai.isEmpty()) {
+                if (tenChuongTrinh.isEmpty() || mucKmStr.isEmpty() || tgBatDau.isEmpty() || tgKetThuc.isEmpty()) {
                     JOptionPane.showMessageDialog(this, "Vui lòng điền đầy đủ thông tin!", "Cảnh báo",
                             JOptionPane.WARNING_MESSAGE);
                     return;
@@ -310,6 +341,7 @@ public class PromotionsPanel extends JPanel {
                         "MaKM = ?", new Object[] { maKm });
                 JOptionPane.showMessageDialog(this, "Sửa khuyến mãi thành công!");
                 loadData();
+                notifyPromotionChanged();
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi sửa khuyến mãi: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -318,6 +350,12 @@ public class PromotionsPanel extends JPanel {
     }
 
     private void deletePromotion() {
+        if ("user".equals(userRole)) {
+            JOptionPane.showMessageDialog(this, "Nhân viên không có quyền xóa khuyến mãi!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int selectedRow = promotionsTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn một khuyến mãi để xóa!", "Cảnh báo",
@@ -343,6 +381,7 @@ public class PromotionsPanel extends JPanel {
                 dbManager.delete("KHUYEN_MAI", "MaKM = ?", new Object[] { maKm });
                 JOptionPane.showMessageDialog(this, "Xóa khuyến mãi thành công!");
                 loadData();
+                notifyPromotionChanged();
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi xóa khuyến mãi: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
